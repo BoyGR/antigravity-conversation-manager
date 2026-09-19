@@ -416,6 +416,12 @@
             <!-- About -->
             <div class="settings-group">
               <h3>${escapeHtml(t("about"))}</h3>
+
+              ${state.iconUri ? `
+              <div style="text-align: center; margin: 8px 0 16px 0;">
+                <img src="${escapeHtml(state.iconUri)}" width="64" height="64" style="border-radius: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.35); vertical-align: middle;" alt="Logo" />
+              </div>` : ""}
+
               <div class="about-row">
                 <span>${escapeHtml(t("appName"))}</span>
                 <span>v${escapeHtml(state.version || "0.3.2")}</span>
@@ -556,6 +562,10 @@
         if (versionEl) {
           versionEl.textContent = `v${msg.version}`;
         }
+      }
+
+      if (msg.iconUri) {
+        state.iconUri = msg.iconUri;
       }
 
       const projectsJson = JSON.stringify(msg.projects || []);

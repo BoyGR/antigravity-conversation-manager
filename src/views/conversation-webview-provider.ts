@@ -338,6 +338,10 @@ export class ConversationWebviewProvider implements vscode.WebviewViewProvider {
       const labelMgr = LabelManager.getInstance(this._store.getPaths());
       const allLabels = labelMgr.getLabels();
 
+      const iconUri = this._view.webview.asWebviewUri(
+        vscode.Uri.joinPath(this._extensionUri, "media", "icon.png")
+      ).toString();
+
       this._view.webview.postMessage({
         type: "stateUpdate",
         projects,
@@ -347,7 +351,8 @@ export class ConversationWebviewProvider implements vscode.WebviewViewProvider {
         allLabels,
         baseDir: this._store.getPaths().baseDir,
         preferences,
-        version: "0.3.2"
+        version: "0.3.2",
+        iconUri
       });
     } catch (err: any) {
       this._view.webview.postMessage({
