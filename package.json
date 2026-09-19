@@ -2,7 +2,7 @@
     "name": "antigravity-conversation-manager",
     "displayName": "Antigravity Conversation Manager",
     "description": "Seamlessly organize, switch, move, export, import, and backup Google Antigravity conversations across projects and workspaces.",
-    "version": "0.3.1",
+    "version": "0.3.2",
     "publisher": "boygr",
     "author": {
         "name": "Boy Gilang Ramadhan",

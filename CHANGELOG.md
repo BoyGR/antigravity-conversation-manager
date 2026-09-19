@@ -4,6 +4,15 @@ All notable changes to the **Antigravity Conversation Manager** extension will b
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - 2026-09-19
+
+### Changed
+- **Transparent Extension Icon Branding**:
+  - Replaced the dark boxed rounded square background on the official extension icon (`icon.png`) with a clean, 100% transparent PNG background.
+  - Retained the signature Antigravity double chat bubbles and 'A' orbital swoosh, scaled proportionally (~85% canvas fill) for crisp rendering across VS Code dark and light themes at all DPI resolutions.
+
+---
+
 ## [0.3.1] - 2026-09-19
 
 ### Fixed

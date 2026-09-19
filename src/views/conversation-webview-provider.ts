@@ -410,7 +410,7 @@ export class ConversationWebviewProvider implements vscode.WebviewViewProvider {
         <span class="footer-prefix">Developed by</span>
         <a href="https://boygr.com" id="developer-link" class="developer-link" title="https://boygr.com">Boy Gilang Ramadhan</a>
       </div>
-      <span class="footer-version">v0.3.1</span>
+      <span class="footer-version">v0.3.2</span>
     </footer>
   </div>
 
