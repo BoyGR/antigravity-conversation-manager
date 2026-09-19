@@ -1,0 +1,262 @@
+{
+    "name": "antigravity-conversation-manager",
+    "displayName": "Antigravity Conversation Manager",
+    "description": "Seamlessly organize, switch, move, export, import, and backup Google Antigravity conversations across projects and workspaces.",
+    "version": "0.2.0",
+    "publisher": "boygr",
+    "author": {
+        "name": "Boy Gilang Ramadhan",
+        "url": "https://boygr.com"
+    },
+    "license": "MIT",
+    "icon": "media/icon.png",
+    "homepage": "https://boygr.com",
+    "bugs": {
+        "url": "https://github.com/BoyGR/antigravity-conversation-manager/issues"
+    },
+    "galleryBanner": {
+        "color": "#090d16",
+        "theme": "dark"
+    },
+    "engines": {
+        "vscode": "^1.95.0"
+    },
+    "categories": [
+        "Other",
+        "Machine Learning"
+    ],
+    "activationEvents": [
+        "onStartupFinished"
+    ],
+    "main": "./dist/extension.js",
+    "contributes": {
+        "icons": {
+            "antigravity-convo-logo": {
+                "description": "Antigravity Conversation Manager Logo",
+                "default": {
+                    "fontPath": "media/antigravity.woff",
+                    "fontCharacter": "\\f101"
+                }
+            }
+        },
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "antigravityConversationManager",
+                    "title": "Antigravity Conversation Manager",
+                    "icon": "media/antigravity.svg"
+                }
+            ]
+        },
+        "views": {
+            "antigravityConversationManager": [
+                {
+                    "type": "webview",
+                    "id": "boygr.antigravityConversationManager.mainView",
+                    "name": "Antigravity Conversation Manager",
+                    "contextualTitle": "Antigravity Conversation Manager",
+                    "icon": "media/antigravity.svg"
+                }
+            ]
+        },
+        "commands": [
+            {
+                "command": "boygr.antigravityConversationManager.focusView",
+                "title": "Focus Conversation Manager View",
+                "category": "Antigravity Conversation Manager"
+            },
+            {
+                "command": "boygr.antigravityConversationManager.refresh",
+                "title": "Refresh Conversations",
+                "category": "Antigravity Conversation Manager",
+                "icon": "$(refresh)"
+            },
+            {
+                "command": "boygr.antigravityConversationManager.switchConversation",
+                "title": "Switch Active Conversation...",
+                "category": "Antigravity Conversation Manager"
+            },
+            {
+                "command": "boygr.antigravityConversationManager.renameConversation",
+                "title": "Rename Conversation...",
+                "category": "Antigravity Conversation Manager"
+            },
+            {
+                "command": "boygr.antigravityConversationManager.deleteConversation",
+                "title": "Delete Conversation...",
+                "category": "Antigravity Conversation Manager"
+            },
+            {
+                "command": "boygr.antigravityConversationManager.moveConversation",
+                "title": "Move Conversation to Another Project...",
+                "category": "Antigravity Conversation Manager"
+            },
+            {
+                "command": "boygr.antigravityConversationManager.exportConversation",
+                "title": "Export Conversation (.acm)...",
+                "category": "Antigravity Conversation Manager"
+            },
+            {
+                "command": "boygr.antigravityConversationManager.exportMarkdown",
+                "title": "Export Conversation as Markdown (.md)...",
+                "category": "Antigravity Conversation Manager"
+            },
+            {
+                "command": "boygr.antigravityConversationManager.importConversation",
+                "title": "Import Conversation Bundle (.acm)...",
+                "category": "Antigravity Conversation Manager"
+            },
+            {
+                "command": "boygr.antigravityConversationManager.createProject",
+                "title": "Create New Project Folder...",
+                "category": "Antigravity Conversation Manager"
+            },
+            {
+                "command": "boygr.antigravityConversationManager.renameProject",
+                "title": "Rename Project Folder...",
+                "category": "Antigravity Conversation Manager"
+            },
+            {
+                "command": "boygr.antigravityConversationManager.deleteProject",
+                "title": "Delete Project Folder...",
+                "category": "Antigravity Conversation Manager"
+            },
+            {
+                "command": "boygr.antigravityConversationManager.backupAll",
+                "title": "Backup Conversation Database to File...",
+                "category": "Antigravity Conversation Manager"
+            },
+            {
+                "command": "boygr.antigravityConversationManager.restoreBackup",
+                "title": "Restore Conversation Database from File...",
+                "category": "Antigravity Conversation Manager"
+            },
+            {
+                "command": "boygr.antigravityConversationManager.openSettings",
+                "title": "Settings",
+                "category": "Antigravity Conversation Manager",
+                "icon": "$(gear)"
+            }
+        ],
+        "menus": {
+            "view/title": [
+                {
+                    "command": "boygr.antigravityConversationManager.refresh",
+                    "when": "view == boygr.antigravityConversationManager.mainView",
+                    "group": "navigation@1"
+                },
+                {
+                    "command": "boygr.antigravityConversationManager.openSettings",
+                    "when": "view == boygr.antigravityConversationManager.mainView",
+                    "group": "navigation@2"
+                }
+            ]
+        },
+        "configuration": {
+            "title": "Antigravity Conversation Manager",
+            "properties": {
+                "boygr.antigravityConversationManager.defaultTheme": {
+                    "type": "string",
+                    "default": "vscode",
+                    "enum": [
+                        "vscode",
+                        "dark",
+                        "light",
+                        "system"
+                    ],
+                    "enumDescriptions": [
+                        "Follow VS Code active theme",
+                        "Force dark theme",
+                        "Force light theme",
+                        "Follow OS system appearance"
+                    ],
+                    "description": "Theme used by the Antigravity Conversation Manager dashboard."
+                },
+                "boygr.antigravityConversationManager.defaultLanguage": {
+                    "type": "string",
+                    "default": "auto",
+                    "enum": [
+                        "auto",
+                        "en",
+                        "id"
+                    ],
+                    "enumDescriptions": [
+                        "Automatic (Match VS Code / OS language)",
+                        "English",
+                        "Bahasa Indonesia"
+                    ],
+                    "description": "Language used by the Antigravity Conversation Manager interface."
+                },
+                "boygr.antigravityConversationManager.defaultExportFormat": {
+                    "type": "string",
+                    "default": "bundle",
+                    "enum": [
+                        "bundle",
+                        "markdown"
+                    ],
+                    "enumDescriptions": [
+                        "Portable Conversation Bundle (.acm)",
+                        "Markdown Document (.md)"
+                    ],
+                    "description": "Default format when exporting conversation sessions."
+                },
+                "boygr.antigravityConversationManager.showConversationPreview": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Show last message preview snippets in conversation list."
+                },
+                "boygr.antigravityConversationManager.confirmOnActions": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Show confirmation dialog before switching, moving, or deleting conversations."
+                },
+                "boygr.antigravityConversationManager.customAntigravityPath": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Custom path to Antigravity directory (~/.gemini/antigravity). Leave blank for auto-detection."
+                },
+                "boygr.antigravityConversationManager.autoBackupBeforeMove": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Automatically create a database snapshot backup before moving conversations."
+                },
+                "boygr.antigravityConversationManager.pythonPath": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Custom path to Python executable (e.g. C:\\Python312\\python.exe). Leave blank for auto-detection."
+                }
+            }
+        }
+    },
+    "scripts": {
+        "compile": "tsc -p ./ --noEmit && node esbuild.js --production",
+        "watch": "node esbuild.js --watch",
+        "package": "vsce package",
+        "vscode:prepublish": "npm run compile",
+        "package:vsix": "npx --yes @vscode/vsce package --out .bgr/releases",
+        "publish:marketplace": "npx --yes @vscode/vsce publish",
+        "publish:openvsx": "npx --yes ovsx publish"
+    },
+    "devDependencies": {
+        "@types/node": "^22.0.0",
+        "@types/vscode": "^1.95.0",
+        "@vscode/vsce": "^3.6.0",
+        "esbuild": "^0.25.0",
+        "typescript": "^5.8.0"
+    },
+    "keywords": [
+        "antigravity",
+        "conversation",
+        "export",
+        "import",
+        "move",
+        "backup",
+        "gemini",
+        "vscode"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/BoyGR/antigravity-conversation-manager.git"
+    }
+}
+

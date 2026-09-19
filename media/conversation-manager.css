@@ -1,0 +1,1012 @@
+:root {
+  --ag-bg: var(--vscode-sideBar-background);
+  --ag-surface: var(--vscode-sideBar-background);
+  --ag-raised: var(--vscode-editor-background);
+  --ag-card-bg: var(--vscode-editor-background);
+  --ag-card-border: var(--vscode-panel-border, rgba(128, 128, 128, 0.2));
+  --ag-card-subtle: color-mix(in srgb, var(--vscode-editor-background) 75%, var(--vscode-sideBar-background));
+  --ag-hover: var(--vscode-list-hoverBackground);
+  --ag-active: var(--vscode-list-activeSelectionBackground);
+  --ag-fg: var(--vscode-foreground);
+  --ag-fg-muted: var(--vscode-descriptionForeground);
+  --ag-muted: var(--vscode-descriptionForeground);
+  --ag-border: var(--vscode-panel-border, rgba(128, 128, 128, 0.2));
+  --ag-focus: var(--vscode-focusBorder);
+  --ag-link: var(--vscode-textLink-foreground);
+  --ag-button-bg: var(--vscode-button-background);
+  --ag-button-fg: var(--vscode-button-foreground);
+  --ag-button-hover: var(--vscode-button-hoverBackground);
+  --ag-input-bg: var(--vscode-input-background);
+  --ag-input-fg: var(--vscode-input-foreground);
+  --ag-input-border: var(--vscode-input-border);
+  --ag-error: var(--vscode-errorForeground);
+  --ag-success: var(--vscode-testing-iconPassed);
+  --ag-warning: var(--vscode-editorWarning-foreground);
+  --ag-radius: 5px;
+  scrollbar-color: color-mix(in srgb, var(--vscode-descriptionForeground) 40%, transparent) transparent;
+
+  /* Theme aliases */
+  --primary-accent: var(--ag-link, #3b82f6);
+  --primary-hover: var(--ag-button-hover, #2563eb);
+  --bg-card: var(--ag-card-bg);
+  --border-color: var(--ag-border);
+  --text-muted: var(--ag-muted);
+  --hover-bg: var(--ag-hover);
+}
+
+:root[data-ag-theme="light"] {
+  --ag-bg: #f8fafc;
+  --ag-surface: #f1f5f9;
+  --ag-raised: #ffffff;
+  --ag-card-bg: #ffffff;
+  --ag-card-border: #e2e8f0;
+  --ag-card-subtle: #f8fafc;
+  --ag-hover: #f1f5f9;
+  --ag-active: #e0f2fe;
+  --ag-fg: #0f172a;
+  --ag-fg-muted: #64748b;
+  --ag-muted: #64748b;
+  --ag-border: #cbd5e1;
+  --ag-focus: #0284c7;
+  --ag-link: #0284c7;
+  --ag-button-bg: #0284c7;
+  --ag-button-fg: #ffffff;
+  --ag-button-hover: #0369a1;
+  --ag-input-bg: #ffffff;
+  --ag-input-fg: #0f172a;
+  --ag-input-border: #cbd5e1;
+  --ag-error: #ef4444;
+  --ag-success: #10b981;
+  --ag-warning: #f59e0b;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+:root[data-ag-theme="dark"] {
+  --ag-bg: #181a1f;
+  --ag-surface: #181a1f;
+  --ag-raised: #20232a;
+  --ag-card-bg: #21262d;
+  --ag-card-border: #30363d;
+  --ag-card-subtle: #161b22;
+  --ag-hover: #292d35;
+  --ag-active: #1f2f46;
+  --ag-fg: #e6edf3;
+  --ag-fg-muted: #8b949e;
+  --ag-muted: #8b949e;
+  --ag-border: #30363d;
+  --ag-focus: #2f81f7;
+  --ag-link: #58a6ff;
+  --ag-button-bg: #1f6feb;
+  --ag-button-fg: #ffffff;
+  --ag-button-hover: #388bfd;
+  --ag-input-bg: #0d1117;
+  --ag-input-fg: #e6edf3;
+  --ag-input-border: #30363d;
+  --ag-error: #f85149;
+  --ag-success: #3fb950;
+  --ag-warning: #d29922;
+  scrollbar-color: #475569 transparent;
+}
+
+/* Custom Slim Scrollbars (Exact match to account-switcher) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--ag-muted) 35%, transparent);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--ag-muted) 55%, transparent);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  font-size: var(--vscode-font-size, 13px);
+  line-height: 1.4;
+  color: var(--ag-fg);
+  background-color: var(--ag-bg);
+  user-select: none;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  color: inherit;
+}
+
+button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+a:focus-visible {
+  outline: 1px solid var(--ag-focus);
+  outline-offset: 1px;
+}
+
+a {
+  color: var(--ag-link);
+}
+
+/* ========================================================= */
+/* Application Container                                     */
+/* ========================================================= */
+
+.app-container {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.app-header {
+  padding: 7px 9px 8px;
+  border-bottom: 1px solid var(--ag-border);
+  background: var(--ag-surface);
+}
+
+.header-toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.header-toolbar-row .search-bar {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.icon-button {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--ag-muted);
+  cursor: pointer;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--ag-radius);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.icon-button:hover {
+  color: var(--ag-fg);
+  background-color: var(--ag-hover);
+  border-color: var(--ag-border);
+}
+
+.search-bar {
+  margin-bottom: 6px;
+}
+
+.search-bar input {
+  width: 100%;
+  padding: 5px 8px;
+  border-radius: var(--ag-radius);
+  border: 1px solid var(--ag-input-border);
+  background: var(--ag-input-bg);
+  color: var(--ag-input-fg);
+  font-size: 11px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.search-bar input:focus {
+  border-color: var(--ag-focus);
+}
+
+.stats-bar {
+  font-size: 10px;
+  color: var(--ag-muted);
+  display: flex;
+  justify-content: space-between;
+  padding: 0 1px;
+}
+
+.tree-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 4px;
+}
+
+/* ========================================================= */
+/* Project Group (Accordion)                                 */
+/* ========================================================= */
+
+.project-group {
+  margin-bottom: 4px;
+  border-radius: var(--ag-radius);
+}
+
+.project-header {
+  display: flex;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: var(--ag-radius);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--ag-fg);
+  transition: background 0.15s;
+}
+
+.project-header:hover {
+  background-color: var(--ag-hover);
+}
+
+.project-reorder-actions {
+  display: none;
+  align-items: center;
+  gap: 2px;
+  margin-left: 6px;
+  margin-right: 4px;
+}
+
+.project-header:hover .project-reorder-actions {
+  display: inline-flex;
+}
+
+.reorder-btn {
+  background: transparent;
+  border: 1px solid var(--ag-border);
+  color: var(--ag-muted);
+  font-size: 9px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.reorder-btn:hover {
+  background: var(--ag-button-bg);
+  color: var(--ag-button-fg);
+  border-color: var(--ag-button-bg);
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spinning {
+  animation: spin 0.8s linear infinite;
+}
+
+.project-arrow {
+  margin-right: 6px;
+  font-size: 9px;
+  color: var(--ag-muted);
+  transition: transform 0.15s;
+}
+
+.project-group.collapsed .project-arrow {
+  transform: rotate(-90deg);
+}
+
+.project-group.collapsed .conversation-list {
+  display: none;
+}
+
+.project-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-count {
+  font-size: 9px;
+  background: var(--ag-card-subtle);
+  border: 1px solid var(--ag-border);
+  padding: 1px 6px;
+  border-radius: 10px;
+  color: var(--ag-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ========================================================= */
+/* Conversation List Items                                   */
+/* ========================================================= */
+
+.conversation-list {
+  list-style: none;
+  padding-left: 10px;
+  margin-top: 2px;
+}
+
+.conversation-item {
+  display: block;
+  padding: 6px 8px;
+  margin: 2px 2px;
+  border-radius: var(--ag-radius);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  position: relative;
+}
+
+.conversation-item:hover {
+  background-color: var(--ag-hover);
+  border-color: var(--ag-border);
+}
+
+.conversation-item.active {
+  background: color-mix(in srgb, var(--ag-success) 10%, var(--ag-bg));
+  border-left: 3px solid var(--ag-success);
+  border-top-color: color-mix(in srgb, var(--ag-success) 20%, transparent);
+  border-bottom-color: color-mix(in srgb, var(--ag-success) 20%, transparent);
+  border-right-color: color-mix(in srgb, var(--ag-success) 20%, transparent);
+}
+
+.conversation-item.active:hover {
+  background: color-mix(in srgb, var(--ag-success) 16%, var(--ag-bg));
+}
+
+.conversation-content {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+}
+
+.conversation-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+}
+
+.conversation-title {
+  font-size: 11px;
+  font-weight: 550;
+  color: var(--ag-fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.badge-active {
+  font-size: 8px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--ag-success) 20%, transparent);
+  color: var(--ag-success);
+  border: 1px solid color-mix(in srgb, var(--ag-success) 45%, transparent);
+  line-height: 1.2;
+  flex-shrink: 0;
+}
+
+.action-btn.switch {
+  background: color-mix(in srgb, var(--ag-focus) 15%, transparent);
+  color: var(--ag-focus);
+  border: 1px solid color-mix(in srgb, var(--ag-focus) 40%, transparent);
+  font-size: 9px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+
+.action-btn.switch:hover {
+  background: var(--ag-button-bg);
+  color: var(--ag-button-fg);
+  border-color: var(--ag-button-bg);
+}
+
+.conversation-bottom-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  width: 100%;
+  min-height: 20px;
+  position: relative;
+}
+
+.conversation-meta {
+  font-size: 10px;
+  color: var(--ag-muted);
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.3;
+}
+
+.conversation-actions {
+  display: none;
+  align-items: center;
+  gap: 2px;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  background: var(--ag-hover);
+  padding-left: 6px;
+  border-radius: 4px;
+  z-index: 2;
+}
+
+.conversation-item:hover .conversation-actions {
+  display: inline-flex;
+}
+
+.conversation-item.active:hover .conversation-actions {
+  background: color-mix(in srgb, var(--ag-success) 22%, var(--ag-bg));
+}
+
+.action-icon-btn {
+  background: var(--ag-surface);
+  border: 1px solid var(--ag-border);
+  color: var(--ag-muted);
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  font-size: 10px;
+}
+
+.action-icon-btn:hover {
+  color: var(--ag-fg);
+  background: var(--ag-hover);
+  border-color: var(--ag-focus);
+}
+
+.action-icon-btn.rename:hover {
+  background: var(--ag-focus);
+  border-color: var(--ag-focus);
+  color: #fff;
+}
+
+.action-icon-btn.move:hover {
+  background: var(--ag-button-bg);
+  border-color: var(--ag-button-bg);
+  color: #fff;
+}
+
+.action-icon-btn.export:hover {
+  background: #8b5cf6;
+  border-color: #8b5cf6;
+  color: #fff;
+}
+
+.action-icon-btn.md:hover {
+  background: var(--ag-success);
+  border-color: var(--ag-success);
+  color: #fff;
+}
+
+.action-icon-btn.del:hover {
+  background: var(--ag-error);
+  border-color: var(--ag-error);
+  color: #fff;
+}
+
+.conversation-preview {
+  margin-top: 3px;
+  font-size: 10px;
+  color: var(--ag-muted);
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.82;
+}
+
+.empty-state {
+  padding: 24px 12px;
+  text-align: center;
+  color: var(--ag-muted);
+  font-size: 11px;
+}
+
+/* ========================================================= */
+/* In-Webview Custom Dialog Modals (Exact Account Switcher)  */
+/* ========================================================= */
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  background: color-mix(in srgb, #000 44%, transparent);
+  animation: modalFadeIn 0.15s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.confirm-dialog {
+  width: min(100%, 330px);
+  overflow: hidden;
+  border: 1px solid var(--ag-border);
+  border-radius: 7px;
+  background: var(--ag-bg);
+  box-shadow: 0 10px 34px color-mix(in srgb, #000 35%, transparent);
+  animation: modalScaleIn 0.15s ease-out;
+}
+
+@keyframes modalScaleIn {
+  from { transform: scale(0.96); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.confirm-dialog-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  padding: 13px 13px 10px;
+  align-items: flex-start;
+}
+
+.confirm-dialog-header h2 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--ag-fg);
+  line-height: 1.3;
+}
+
+.dialog-symbol {
+  display: grid;
+  place-items: center;
+  width: 23px;
+  height: 23px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.dialog-symbol.danger {
+  border: 1px solid color-mix(in srgb, var(--ag-error) 55%, var(--ag-border));
+  color: var(--ag-error);
+  background: color-mix(in srgb, var(--ag-error) 12%, transparent);
+}
+
+.dialog-symbol.primary {
+  border: 1px solid color-mix(in srgb, var(--ag-focus) 55%, var(--ag-border));
+  color: var(--ag-focus);
+  background: color-mix(in srgb, var(--ag-focus) 12%, transparent);
+}
+
+.dialog-symbol.warning {
+  border: 1px solid color-mix(in srgb, var(--ag-warning) 55%, var(--ag-border));
+  color: var(--ag-warning);
+  background: color-mix(in srgb, var(--ag-warning) 12%, transparent);
+}
+
+.dialog-symbol.success {
+  border: 1px solid color-mix(in srgb, var(--ag-success) 55%, var(--ag-border));
+  color: var(--ag-success);
+  background: color-mix(in srgb, var(--ag-success) 12%, transparent);
+}
+
+.confirm-dialog-body {
+  padding: 0 13px 12px;
+}
+
+.confirm-target-name {
+  margin-top: 5px;
+  overflow: hidden;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ag-fg);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.confirm-target-sub {
+  overflow: hidden;
+  margin-top: 1px;
+  color: var(--ag-muted);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.confirm-description {
+  margin: 6px 0 0;
+  color: var(--ag-muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.confirm-dialog-input {
+  width: 100%;
+  margin-top: 8px;
+  padding: 5px 8px;
+  border-radius: var(--ag-radius);
+  border: 1px solid var(--ag-input-border);
+  background: var(--ag-input-bg);
+  color: var(--ag-input-fg);
+  font-size: 11px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+
+.confirm-dialog-input:focus {
+  border-color: var(--ag-focus);
+}
+
+.confirm-dialog-select {
+  width: 100%;
+  margin-top: 8px;
+  padding: 5px 8px;
+  border-radius: var(--ag-radius);
+  border: 1px solid var(--ag-border);
+  background: var(--ag-raised);
+  color: var(--ag-fg);
+  font-size: 11px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.confirm-dialog-select:focus {
+  border-color: var(--ag-focus);
+}
+
+.confirm-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 9px 11px;
+  border-top: 1px solid var(--ag-border);
+  background: var(--ag-raised);
+}
+
+.btn,
+.modal-btn {
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid var(--ag-border);
+  background: transparent;
+  color: var(--ag-fg);
+  transition: all 0.15s;
+}
+
+.btn:hover,
+.modal-btn:hover {
+  background: var(--ag-hover);
+}
+
+.btn.primary-btn,
+.modal-btn.primary {
+  background: var(--ag-button-bg);
+  border-color: var(--ag-button-bg);
+  color: var(--ag-button-fg);
+}
+
+.btn.primary-btn:hover,
+.modal-btn.primary:hover {
+  background: var(--ag-button-hover);
+}
+
+.btn.destructive,
+.modal-btn.destructive {
+  color: var(--vscode-button-foreground, #fff);
+  border-color: var(--ag-error);
+  background: var(--ag-error);
+}
+
+.btn.destructive:hover,
+.modal-btn.destructive:hover {
+  filter: brightness(1.08);
+}
+
+/* ========================================================= */
+/* Developer Footer (Exact Account Switcher)                 */
+/* ========================================================= */
+
+.developer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  min-height: 34px;
+  padding: 7px 9px 8px;
+  border-top: 1px solid var(--ag-border);
+  background: var(--ag-surface);
+  color: var(--ag-muted);
+  font-size: 9px;
+  flex-shrink: 0;
+}
+
+.developer-footer-copy {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.developer-footer strong {
+  color: var(--ag-fg);
+  font-weight: 600;
+}
+
+.developer-footer a {
+  color: var(--ag-link);
+  text-decoration: none;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.developer-footer a:hover {
+  text-decoration: underline;
+}
+
+.footer-version {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+
+/* ========================================================= */
+/* In-Webview Settings Modal (1:1 with Account Switcher)      */
+/* ========================================================= */
+
+.settings-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  padding: 6px;
+  background: color-mix(in srgb, #000 40%, transparent);
+  animation: modalFadeIn 0.15s ease-out;
+}
+
+.settings-panel {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--ag-border);
+  border-radius: 7px;
+  background: var(--ag-bg);
+  box-shadow: 0 8px 28px color-mix(in srgb, #000 32%, transparent);
+  animation: modalScaleIn 0.15s ease-out;
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  padding: 8px 10px 8px 14px;
+  border-bottom: 1px solid var(--ag-border);
+  background: var(--ag-surface);
+}
+
+.settings-header h2 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--ag-fg);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.settings-header .close-btn {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--ag-muted);
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.settings-header .close-btn:hover {
+  background: var(--ag-hover);
+  color: var(--ag-fg);
+}
+
+.settings-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.settings-group + .settings-group {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--ag-card-border);
+}
+
+.settings-group h3 {
+  margin: 0 0 9px;
+  color: var(--ag-muted);
+  font-size: 9.5px;
+  font-weight: 650;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 5px;
+  margin-bottom: 11px;
+  font-size: 10.5px;
+}
+
+.field span {
+  font-weight: 500;
+  color: var(--ag-fg);
+}
+
+.field select,
+.field input[type="text"] {
+  height: 28px;
+  padding: 3px 8px;
+  font-size: 11px;
+  border: 1px solid var(--ag-border);
+  border-radius: 4px;
+  background: var(--ag-surface);
+  color: var(--ag-fg);
+  outline: none;
+}
+
+.field select:focus,
+.field input[type="text"]:focus {
+  border-color: var(--ag-focus);
+}
+
+.check-setting-wrap {
+  margin-bottom: 10px;
+}
+
+.check-setting-wrap:last-child {
+  margin-bottom: 0;
+}
+
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 20px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.check-row input[type="checkbox"] {
+  margin: 0;
+  accent-color: var(--ag-accent);
+  cursor: pointer;
+}
+
+.check-label-text {
+  font-weight: 500;
+  color: var(--ag-fg);
+}
+
+.field-hint {
+  margin-top: 2px;
+  margin-left: 21px;
+  color: var(--ag-muted);
+  font-size: 9.5px;
+  line-height: 1.35;
+}
+
+.settings-desc {
+  margin: 0 0 8px;
+  color: var(--ag-muted);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.settings-actions-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.settings-actions-row .btn {
+  flex: 1;
+  text-align: center;
+  padding: 5px 8px;
+  font-size: 10px;
+}
+
+.settings-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 9px 12px;
+  border-top: 1px solid var(--ag-border);
+  background: var(--ag-surface);
+}
+
+.about-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 22px;
+  color: var(--ag-muted);
+  font-size: 10px;
+}
+
+.about-row > :last-child {
+  color: var(--ag-fg);
+  font-weight: 500;
+}
+

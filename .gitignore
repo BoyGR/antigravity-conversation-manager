@@ -1,0 +1,22 @@
+# Build and packaging output
+dist/
+out/
+*.vsix
+
+# Dependencies
+node_modules/
+
+# Private Developer SOP, Releases, and Internal Docs (100% PRIVATE)
+.bgr/
+/.bgr/
+internal/
+
+# OS and Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+releases/
