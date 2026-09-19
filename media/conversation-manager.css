@@ -447,18 +447,14 @@ a {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 4px;
+  gap: 6px;
   width: 100%;
-  min-height: 20px;
-  position: relative;
+  min-height: 22px;
 }
 
 .conversation-meta {
   font-size: 10px;
   color: var(--ag-muted);
-  display: flex;
-  gap: 4px;
-  align-items: center;
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -467,25 +463,21 @@ a {
   line-height: 1.3;
 }
 
+.conversation-meta span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .conversation-actions {
   display: none;
   align-items: center;
   gap: 2px;
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  background: var(--ag-hover);
-  padding-left: 6px;
-  border-radius: 4px;
-  z-index: 2;
+  flex-shrink: 0;
 }
 
 .conversation-item:hover .conversation-actions {
   display: inline-flex;
-}
-
-.conversation-item.active:hover .conversation-actions {
-  background: color-mix(in srgb, var(--ag-success) 22%, var(--ag-bg));
 }
 
 .action-icon-btn {

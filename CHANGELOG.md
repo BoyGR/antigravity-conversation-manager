@@ -4,6 +4,16 @@ All notable changes to the **Antigravity Conversation Manager** extension will b
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-09-19
+
+### Fixed
+- **Action Buttons & Metadata Text Overlap**:
+  - Removed absolute floating positioning on `.conversation-actions` that caused action icon buttons (such as the new label button) to overlap metadata text (`steps • KB • time`) on narrow sidebars.
+  - Implemented standard flexbox sibling truncation (`text-overflow: ellipsis`) so metadata smoothly yields space to action buttons without any visual collisions or text overlap.
+  - Added full title tooltips to metadata so users can always see full step counts, database sizes, and timestamps on hover.
+
+---
+
 ## [0.3.0] - 2026-09-19
 
 ### Added

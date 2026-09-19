@@ -1175,6 +1175,10 @@
 
         const sizeKb = (convo.dbSizeBytes / 1024).toFixed(0);
         const dateStr = convo.lastModifiedTime ? formatTime(convo.lastModifiedTime) : "";
+        const metaParts = [`${convo.stepCount} steps`];
+        if (sizeKb > 0) metaParts.push(`${sizeKb} KB`);
+        if (dateStr) metaParts.push(dateStr);
+        const metaText = metaParts.join(" • ");
 
         const convoLabelsHtml = (convo.labels && convo.labels.length > 0)
           ? `<div class="conversation-labels">${convo.labels.map(l => `
@@ -1200,10 +1204,8 @@
             ${convoLabelsHtml}
             ${preferences.showPreview !== false && convo.preview ? `<div class="conversation-preview" title="${escapeHtml(convo.preview)}">${escapeHtml(convo.preview)}</div>` : ""}
             <div class="conversation-bottom-row">
-              <div class="conversation-meta">
-                <span>${convo.stepCount} steps</span>
-                ${sizeKb > 0 ? `<span>• ${sizeKb} KB</span>` : ""}
-                ${dateStr ? `<span>• ${dateStr}</span>` : ""}
+              <div class="conversation-meta" title="${escapeHtml(metaText)}">
+                <span>${escapeHtml(metaText)}</span>
               </div>
               <div class="conversation-actions">
                 <button class="action-icon-btn label" title="${escapeHtml(t("assignLabels"))}">
