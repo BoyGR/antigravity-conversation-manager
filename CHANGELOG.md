@@ -4,6 +4,17 @@ All notable changes to the **Antigravity Conversation Manager** extension will b
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-09-19
+
+### Added
+- **Multi-Level Label & Tagging System**:
+  - **Custom Label Management**: Create, edit, recolor, and delete custom labels with an 8-color preset palette.
+  - **Project Folder Labeling**: Assign categorical labels to project folders (e.g., *Work*, *Personal*, *Tools*).
+  - **Conversation Labeling**: Attach granular labels to individual conversations (e.g., *Feature*, *Bug*, *Research*).
+  - **Interactive Filter Bar**: Quick-filter conversations across all projects with interactive label chips and conversation count badges.
+  - **Zero Database Contamination**: Labels are persisted centrally in `~/.gemini/antigravity/acm_labels.json`, guaranteeing 100% safety against upstream Antigravity SQLite schema updates.
+  - **Portable Bundle Label Preservation**: Conversation labels are automatically preserved in `.acm` bundle manifests during export and restored upon import.
+
 ---
 
 ## [0.2.0] - 2026-09-19

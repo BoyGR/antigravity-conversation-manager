@@ -4,6 +4,8 @@ import { spawn } from "child_process";
 import { AntigravityPaths, resolveAntigravityPaths } from "./antigravity-paths";
 import { SqliteBridge } from "./sqlite-bridge";
 
+import { LabelManager } from "./label-manager";
+
 export interface ExportOptions {
   conversationId: string;
   outputPath: string;
@@ -28,6 +30,7 @@ export class ConversationExporter {
   private async exportToBundle(conversationId: string, outputPath: string): Promise<string> {
     const convoDbPath = path.join(this.paths.conversationsDir, `${conversationId}.db`);
     const brainDirPath = path.join(this.paths.brainDir, conversationId);
+    const labels = LabelManager.getInstance(this.paths).getConversationLabels(conversationId);
 
     // Fetch summary row
     const rows = await SqliteBridge.query(
@@ -52,6 +55,7 @@ convo_db = payload["convoDb"]
 brain_dir = payload["brainDir"]
 output_zip = payload["outputZip"]
 summary_row = payload["summaryRow"]
+labels = payload.get("labels", [])
 
 manifest = {
     "version": 1,
@@ -62,6 +66,7 @@ manifest = {
     "lastModifiedTime": summary_row.get("last_modified_time", ""),
     "projectId": summary_row.get("project_id", ""),
     "workspaceUris": summary_row.get("workspace_uris", "[]"),
+    "labels": labels,
     "exportedAt": str(os.path.getmtime(convo_db)) if os.path.exists(convo_db) else ""
 }
 
@@ -115,7 +120,8 @@ print(json.dumps({"success": True, "outputPath": output_zip}))
           convoDb: convoDbPath,
           brainDir: brainDirPath,
           outputZip: outputPath,
-          summaryRow
+          summaryRow,
+          labels
         })
       );
       proc.stdin.end();

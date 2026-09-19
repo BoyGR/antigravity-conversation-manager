@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { AntigravityPaths, resolveAntigravityPaths } from "./antigravity-paths";
 import { SqliteBridge } from "./sqlite-bridge";
+import { LabelItem, LabelManager } from "./label-manager";
 import * as vscode from "vscode";
 
 export interface ConversationItem {
@@ -17,6 +18,7 @@ export interface ConversationItem {
   agentName: string;
   hasBrain: boolean;
   dbSizeBytes: number;
+  labels: LabelItem[];
 }
 
 export interface ProjectGroup {
@@ -24,6 +26,7 @@ export interface ProjectGroup {
   name: string;
   workspaceUri?: string;
   conversations: ConversationItem[];
+  labels: LabelItem[];
 }
 
 export class ConversationStore {
@@ -62,6 +65,7 @@ export class ConversationStore {
     `;
 
     const rows = await SqliteBridge.query(this.paths.conversationSummariesDb, sql);
+    const labelMgr = LabelManager.getInstance(this.paths);
 
     const projectMap = new Map<string, ProjectGroup>();
 
@@ -72,7 +76,8 @@ export class ConversationStore {
         id: pId,
         name: pInfo.name,
         workspaceUri: pInfo.folderUri,
-        conversations: []
+        conversations: [],
+        labels: labelMgr.getProjectLabels(pId)
       });
     }
 
@@ -130,7 +135,8 @@ export class ConversationStore {
         projectName,
         agentName,
         hasBrain,
-        dbSizeBytes
+        dbSizeBytes,
+        labels: labelMgr.getConversationLabels(id)
       };
 
       if (!projectMap.has(projectId)) {
@@ -138,7 +144,8 @@ export class ConversationStore {
           id: projectId,
           name: projectName,
           workspaceUri: workspaceUris[0] || "",
-          conversations: []
+          conversations: [],
+          labels: labelMgr.getProjectLabels(projectId)
         });
       }
 

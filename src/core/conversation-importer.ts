@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import { spawn } from "child_process";
 import { AntigravityPaths, resolveAntigravityPaths } from "./antigravity-paths";
 import { SqliteBridge } from "./sqlite-bridge";
+import { LabelManager } from "./label-manager";
 
 export interface ImportOptions {
   bundlePath: string;
@@ -145,6 +146,25 @@ export class ConversationImporter {
         );
 
         await SqliteBridge.checkpointWal(this.paths.conversationSummariesDb);
+
+        // Restore labels if present in manifest
+        try {
+          if (Array.isArray(manifest.labels) && manifest.labels.length > 0) {
+            const labelMgr = LabelManager.getInstance(this.paths);
+            const labelIdsToAssign: string[] = [];
+            for (const l of manifest.labels) {
+              if (l && l.name) {
+                const registered = labelMgr.createLabel(l.name, l.color || "#3b82f6", l.description);
+                labelIdsToAssign.push(registered.id);
+              }
+            }
+            if (labelIdsToAssign.length > 0) {
+              labelMgr.setConversationLabels(targetId, labelIdsToAssign);
+            }
+          }
+        } catch (labelErr) {
+          console.error("Failed to restore labels for imported conversation:", labelErr);
+        }
 
         return {
           success: true,

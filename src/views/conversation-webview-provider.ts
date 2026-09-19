@@ -5,6 +5,7 @@ import { ConversationMigrator } from "../core/conversation-migrator";
 import { ConversationExporter } from "../core/conversation-exporter";
 import { ConversationImporter } from "../core/conversation-importer";
 import { BackupService } from "../core/backup-service";
+import { LabelManager } from "../core/label-manager";
 import { handleMoveConversation } from "../commands/move-conversation";
 import { handleExportConversation } from "../commands/export-conversation";
 import { handleImportConversation } from "../commands/import-conversation";
@@ -240,6 +241,56 @@ export class ConversationWebviewProvider implements vscode.WebviewViewProvider {
           }
           break;
         }
+        case "createLabel": {
+          try {
+            const labelMgr = LabelManager.getInstance(this._store.getPaths());
+            labelMgr.createLabel(data.name, data.color, data.description);
+            await this.refresh();
+          } catch (err: any) {
+            vscode.window.showErrorMessage(`Failed to create label: ${err.message || err}`);
+          }
+          break;
+        }
+        case "updateLabel": {
+          try {
+            const labelMgr = LabelManager.getInstance(this._store.getPaths());
+            labelMgr.updateLabel(data.id, data.name, data.color, data.description);
+            await this.refresh();
+          } catch (err: any) {
+            vscode.window.showErrorMessage(`Failed to update label: ${err.message || err}`);
+          }
+          break;
+        }
+        case "deleteLabel": {
+          try {
+            const labelMgr = LabelManager.getInstance(this._store.getPaths());
+            labelMgr.deleteLabel(data.id);
+            await this.refresh();
+          } catch (err: any) {
+            vscode.window.showErrorMessage(`Failed to delete label: ${err.message || err}`);
+          }
+          break;
+        }
+        case "setProjectLabels": {
+          try {
+            const labelMgr = LabelManager.getInstance(this._store.getPaths());
+            labelMgr.setProjectLabels(data.projectId, data.labelIds || []);
+            await this.refresh();
+          } catch (err: any) {
+            vscode.window.showErrorMessage(`Failed to set project labels: ${err.message || err}`);
+          }
+          break;
+        }
+        case "setConversationLabels": {
+          try {
+            const labelMgr = LabelManager.getInstance(this._store.getPaths());
+            labelMgr.setConversationLabels(data.conversationId, data.labelIds || []);
+            await this.refresh();
+          } catch (err: any) {
+            vscode.window.showErrorMessage(`Failed to set conversation labels: ${err.message || err}`);
+          }
+          break;
+        }
       }
     });
 
@@ -284,12 +335,16 @@ export class ConversationWebviewProvider implements vscode.WebviewViewProvider {
         pythonPath: config.get<string>("pythonPath", "")
       };
 
+      const labelMgr = LabelManager.getInstance(this._store.getPaths());
+      const allLabels = labelMgr.getLabels();
+
       this._view.webview.postMessage({
         type: "stateUpdate",
         projects,
         totalProjects: projects.length,
         totalConversations,
         activeConversationId,
+        allLabels,
         baseDir: this._store.getPaths().baseDir,
         preferences
       });
@@ -339,6 +394,8 @@ export class ConversationWebviewProvider implements vscode.WebviewViewProvider {
         </div>
       </div>
 
+      <div class="labels-filter-bar" id="labels-filter-bar"></div>
+
       <div class="stats-bar" id="stats-bar">
         <span>Loading conversations...</span>
       </div>
@@ -353,12 +410,14 @@ export class ConversationWebviewProvider implements vscode.WebviewViewProvider {
         <span class="footer-prefix">Developed by</span>
         <a href="https://boygr.com" id="developer-link" class="developer-link" title="https://boygr.com">Boy Gilang Ramadhan</a>
       </div>
-      <span class="footer-version">v0.2.0</span>
+      <span class="footer-version">v0.3.0</span>
     </footer>
   </div>
 
   <div id="modal-container"></div>
   <div id="settings-modal-container"></div>
+  <div id="label-modal-container"></div>
+  <div id="label-picker-container"></div>
 
   <script src="${scriptUri}"></script>
 </body>

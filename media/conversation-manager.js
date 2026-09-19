@@ -3,6 +3,8 @@
 
   let state = {
     projects: [],
+    allLabels: [],
+    selectedLabelFilter: "all",
     filterQuery: "",
     activeConversationId: null,
     expandedProjectId: null,
@@ -23,8 +25,22 @@
 
   let ui = {
     settingsOpen: false,
-    settingsDraft: null
+    settingsDraft: null,
+    labelModalOpen: false,
+    labelPickerOpen: false,
+    newLabelColor: "#3b82f6"
   };
+
+  const LABEL_PRESET_COLORS = [
+    "#3b82f6", // Blue
+    "#10b981", // Emerald
+    "#8b5cf6", // Purple
+    "#ef4444", // Red
+    "#f59e0b", // Amber
+    "#06b6d4", // Cyan
+    "#ec4899", // Pink
+    "#64748b"  // Slate
+  ];
 
   const translations = {
     en: {
@@ -77,7 +93,21 @@
       conversations: "Conversations",
       loading: "Loading conversations...",
       noConversationsFound: "No matching conversations found.",
-      noProjectsYet: "No conversation folders found."
+      noProjectsYet: "No conversation folders found.",
+      all: "All",
+      manageLabels: "Manage Labels",
+      labels: "Labels",
+      addLabel: "Add Label",
+      newLabel: "New Label",
+      editLabel: "Edit Label",
+      deleteLabelConfirm: "Are you sure you want to delete this label?",
+      labelNamePlaceholder: "Label name...",
+      selectColor: "Select Color",
+      projectLabelsTitle: "Project Folder Labels",
+      conversationLabelsTitle: "Conversation Labels",
+      noLabelsYet: "No labels created yet.",
+      assignLabels: "Assign Labels",
+      filterByLabel: "Filter by label"
     },
     id: {
       appName: "Antigravity Conversation Manager",
@@ -129,7 +159,21 @@
       conversations: "Percakapan",
       loading: "Memuat percakapan...",
       noConversationsFound: "Tidak ada percakapan yang cocok dengan pencarian.",
-      noProjectsYet: "Belum ada folder percakapan."
+      noProjectsYet: "Belum ada folder percakapan.",
+      all: "Semua",
+      manageLabels: "Kelola Label",
+      labels: "Label",
+      addLabel: "Tambah Label",
+      newLabel: "Label Baru",
+      editLabel: "Ubah Label",
+      deleteLabelConfirm: "Apakah Anda yakin ingin menghapus label ini?",
+      labelNamePlaceholder: "Nama label...",
+      selectColor: "Pilih Warna",
+      projectLabelsTitle: "Label Folder Project",
+      conversationLabelsTitle: "Label Percakapan",
+      noLabelsYet: "Belum ada label yang dibuat.",
+      assignLabels: "Pasang Label",
+      filterByLabel: "Filter berdasarkan label"
     }
   };
 
@@ -167,6 +211,9 @@
   const devLink = document.getElementById("developer-link");
   const modalContainer = document.getElementById("modal-container");
   const settingsModalContainer = document.getElementById("settings-modal-container");
+  const labelsFilterBar = document.getElementById("labels-filter-bar");
+  const labelModalContainer = document.getElementById("label-modal-container");
+  const labelPickerContainer = document.getElementById("label-picker-container");
 
   function updateUiTexts() {
     if (searchInput) {
@@ -462,8 +509,14 @@
         msg.activeConversationId !== state.activeConversationId;
 
       state.projects = msg.projects || [];
+      state.allLabels = msg.allLabels || [];
       state.activeConversationId = msg.activeConversationId || null;
       state.lastProjectsJson = projectsJson;
+
+      renderLabelsFilterBar();
+      if (ui.labelModalOpen) {
+        renderLabelManagerModal();
+      }
 
       // Initialize accordion once on first load
       if (!state.hasInitializedExpansion) {
@@ -665,6 +718,277 @@
   }
 
   // =========================================================
+  // Label System: Filter Bar & Modals
+  // =========================================================
+  function renderLabelsFilterBar() {
+    if (!labelsFilterBar) return;
+
+    if (!state.allLabels || state.allLabels.length === 0) {
+      labelsFilterBar.innerHTML = "";
+      return;
+    }
+
+    // Calculate count per label
+    const labelCounts = {};
+    (state.projects || []).forEach((p) => {
+      (p.conversations || []).forEach((c) => {
+        (c.labels || []).forEach((l) => {
+          labelCounts[l.id] = (labelCounts[l.id] || 0) + 1;
+        });
+      });
+    });
+
+    let html = `
+      <button class="filter-chip ${state.selectedLabelFilter === "all" ? "active" : ""}" data-id="all">
+        ${escapeHtml(t("all"))}
+      </button>
+    `;
+
+    state.allLabels.forEach((l) => {
+      const count = labelCounts[l.id] || 0;
+      const isActive = state.selectedLabelFilter === l.id;
+      html += `
+        <button class="filter-chip ${isActive ? "active" : ""}" data-id="${escapeHtml(l.id)}" style="--chip-color: ${escapeHtml(l.color)};">
+          <span class="filter-chip-dot"></span>
+          <span>${escapeHtml(l.name)}</span>
+          ${count > 0 ? `<span class="filter-chip-count">(${count})</span>` : ""}
+        </button>
+      `;
+    });
+
+    html += `
+      <button class="btn-manage-labels-chip" title="${escapeHtml(t("manageLabels"))}">
+        🏷️ ${escapeHtml(t("manageLabels"))}
+      </button>
+    `;
+
+    labelsFilterBar.innerHTML = html;
+
+    // Listeners
+    labelsFilterBar.querySelectorAll(".filter-chip").forEach((chip) => {
+      chip.addEventListener("click", () => {
+        const id = chip.getAttribute("data-id");
+        state.selectedLabelFilter = id;
+        renderLabelsFilterBar();
+        renderTree();
+      });
+    });
+
+    const btnManage = labelsFilterBar.querySelector(".btn-manage-labels-chip");
+    if (btnManage) {
+      btnManage.addEventListener("click", () => {
+        openLabelManager();
+      });
+    }
+  }
+
+  function openLabelManager() {
+    ui.labelModalOpen = true;
+    renderLabelManagerModal();
+  }
+
+  function closeLabelManager() {
+    ui.labelModalOpen = false;
+    if (labelModalContainer) labelModalContainer.innerHTML = "";
+  }
+
+  function renderLabelManagerModal() {
+    if (!labelModalContainer) return;
+
+    let labelsListHtml = "";
+    if (state.allLabels.length === 0) {
+      labelsListHtml = `<div style="color: var(--ag-muted); font-size: 10px; text-align: center; padding: 12px 0;">${escapeHtml(t("noLabelsYet"))}</div>`;
+    } else {
+      labelsListHtml = state.allLabels.map((l) => `
+        <div class="label-item-row" data-id="${escapeHtml(l.id)}">
+          <div class="label-item-info">
+            <span class="label-dot" style="background-color: ${escapeHtml(l.color)}; width: 10px; height: 10px;"></span>
+            <span style="font-size: 11px; font-weight: 500; color: var(--ag-fg);">${escapeHtml(l.name)}</span>
+          </div>
+          <div class="label-item-actions">
+            <button class="action-icon-btn btn-del-lbl" data-id="${escapeHtml(l.id)}" title="${escapeHtml(t("delete"))}">
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+                <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    const colorSwatchesHtml = LABEL_PRESET_COLORS.map((c) => `
+      <span class="color-swatch ${ui.newLabelColor === c ? "selected" : ""}" data-color="${c}" style="background-color: ${c};"></span>
+    `).join("");
+
+    labelModalContainer.innerHTML = `
+      <div class="label-modal-backdrop" id="lbl-backdrop">
+        <div class="label-modal-panel">
+          <div class="label-modal-header">
+            <span class="label-modal-title">🏷️ ${escapeHtml(t("manageLabels"))}</span>
+            <button class="action-icon-btn" id="btn-close-lbl-modal">✕</button>
+          </div>
+          <div class="label-modal-body">
+            <div class="label-form-box">
+              <span style="font-size: 10px; font-weight: 600; color: var(--ag-fg);">${escapeHtml(t("newLabel"))}</span>
+              <div style="display: flex; gap: 6px;">
+                <input type="text" id="new-label-name" placeholder="${escapeHtml(t("labelNamePlaceholder"))}" style="flex: 1; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--ag-border); background: var(--ag-input-bg); color: var(--ag-fg); font-size: 11px;" />
+                <button class="btn btn-primary" id="btn-save-new-label" style="padding: 4px 10px; font-size: 11px;">${escapeHtml(t("addLabel"))}</button>
+              </div>
+              <div style="font-size: 9.5px; color: var(--ag-muted); margin-top: 2px;">${escapeHtml(t("selectColor"))}:</div>
+              <div class="label-color-palette" id="palette-swatches">
+                ${colorSwatchesHtml}
+              </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="font-size: 10px; font-weight: 600; color: var(--ag-fg);">${escapeHtml(t("labels"))} (${state.allLabels.length})</span>
+              <div class="labels-list">
+                ${labelsListHtml}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const closeBtn = document.getElementById("btn-close-lbl-modal");
+    if (closeBtn) closeBtn.addEventListener("click", closeLabelManager);
+
+    const backdrop = document.getElementById("lbl-backdrop");
+    if (backdrop) {
+      backdrop.addEventListener("click", (e) => {
+        if (e.target === backdrop) closeLabelManager();
+      });
+    }
+
+    const swatches = document.querySelectorAll("#palette-swatches .color-swatch");
+    swatches.forEach((s) => {
+      s.addEventListener("click", () => {
+        ui.newLabelColor = s.getAttribute("data-color");
+        swatches.forEach((sw) => sw.classList.remove("selected"));
+        s.classList.add("selected");
+      });
+    });
+
+    const btnSaveNew = document.getElementById("btn-save-new-label");
+    const nameInput = document.getElementById("new-label-name");
+    const handleCreate = () => {
+      const name = nameInput ? nameInput.value.trim() : "";
+      if (!name) return;
+      vscode.postMessage({
+        type: "createLabel",
+        name: name,
+        color: ui.newLabelColor
+      });
+      nameInput.value = "";
+    };
+
+    if (btnSaveNew) btnSaveNew.addEventListener("click", handleCreate);
+    if (nameInput) {
+      nameInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") handleCreate();
+      });
+    }
+
+    document.querySelectorAll(".label-item-row .btn-del-lbl").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const id = btn.getAttribute("data-id");
+        if (!id) return;
+        vscode.postMessage({
+          type: "deleteLabel",
+          id: id
+        });
+      });
+    });
+  }
+
+  function openLabelPicker({ targetType, targetId, targetName, currentLabels = [] }) {
+    if (!labelPickerContainer) return;
+
+    const currentLabelIds = new Set((currentLabels || []).map((l) => l.id));
+
+    const rowsHtml = state.allLabels.map((l) => {
+      const isChecked = currentLabelIds.has(l.id);
+      return `
+        <label class="label-picker-row">
+          <input type="checkbox" data-id="${escapeHtml(l.id)}" ${isChecked ? "checked" : ""} />
+          <span class="label-dot" style="background-color: ${escapeHtml(l.color)}; width: 9px; height: 9px;"></span>
+          <span style="font-size: 11px; color: var(--ag-fg); font-weight: 500;">${escapeHtml(l.name)}</span>
+        </label>
+      `;
+    }).join("");
+
+    labelPickerContainer.innerHTML = `
+      <div class="label-picker-backdrop" id="picker-backdrop">
+        <div class="label-picker-panel">
+          <div class="label-modal-header">
+            <span class="label-modal-title">🏷️ ${escapeHtml(t("assignLabels"))}: ${escapeHtml(targetName)}</span>
+            <button class="action-icon-btn" id="btn-close-picker">✕</button>
+          </div>
+          <div class="label-modal-body">
+            ${state.allLabels.length === 0 
+              ? `<div style="color: var(--ag-muted); font-size: 10px; text-align: center; padding: 12px 0;">${escapeHtml(t("noLabelsYet"))}</div>`
+              : `<div class="label-picker-list">${rowsHtml}</div>`
+            }
+            <div style="display: flex; justify-content: flex-end; gap: 6px; margin-top: 6px;">
+              <button class="btn btn-secondary" id="btn-cancel-picker" style="padding: 4px 10px; font-size: 11px;">${escapeHtml(t("cancel"))}</button>
+              <button class="btn btn-primary" id="btn-save-picker" style="padding: 4px 10px; font-size: 11px;">${escapeHtml(t("save"))}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const closePicker = () => {
+      labelPickerContainer.innerHTML = "";
+    };
+
+    const closeBtn = document.getElementById("btn-close-picker");
+    if (closeBtn) closeBtn.addEventListener("click", closePicker);
+
+    const cancelBtn = document.getElementById("btn-cancel-picker");
+    if (cancelBtn) cancelBtn.addEventListener("click", closePicker);
+
+    const backdrop = document.getElementById("picker-backdrop");
+    if (backdrop) {
+      backdrop.addEventListener("click", (e) => {
+        if (e.target === backdrop) closePicker();
+      });
+    }
+
+    const saveBtn = document.getElementById("btn-save-picker");
+    if (saveBtn) {
+      saveBtn.addEventListener("click", () => {
+        const checkboxes = labelPickerContainer.querySelectorAll(".label-picker-row input[type='checkbox']");
+        const selectedIds = [];
+        checkboxes.forEach((cb) => {
+          if (cb.checked) {
+            selectedIds.push(cb.getAttribute("data-id"));
+          }
+        });
+
+        if (targetType === "project") {
+          vscode.postMessage({
+            type: "setProjectLabels",
+            projectId: targetId,
+            labelIds: selectedIds
+          });
+        } else if (targetType === "conversation") {
+          vscode.postMessage({
+            type: "setConversationLabels",
+            conversationId: targetId,
+            labelIds: selectedIds
+          });
+        }
+
+        closePicker();
+      });
+    }
+  }
+
+  // =========================================================
   // Render Tree
   // =========================================================
   function renderTree() {
@@ -679,15 +1003,20 @@
     let anyMatches = false;
 
     state.projects.forEach((proj, index) => {
+      const activeLabelId = state.selectedLabelFilter;
       const filteredConvos = proj.conversations.filter((c) => {
-        if (!query) return true;
-        return (
+        const matchesQuery = !query ||
           c.title.toLowerCase().includes(query) ||
-          c.preview.toLowerCase().includes(query)
-        );
+          c.preview.toLowerCase().includes(query);
+        const matchesLabel = activeLabelId === "all" ||
+          (c.labels && c.labels.some((l) => l.id === activeLabelId));
+        return matchesQuery && matchesLabel;
       });
 
-      if (filteredConvos.length === 0 && query) {
+      const projectHasLabel = activeLabelId === "all" ||
+        (proj.labels && proj.labels.some((l) => l.id === activeLabelId));
+
+      if (filteredConvos.length === 0 && !projectHasLabel && (query || activeLabelId !== "all")) {
         return;
       }
 
@@ -697,26 +1026,39 @@
       const isExpanded = query ? true : proj.id === state.expandedProjectId;
       groupEl.className = "project-group" + (isExpanded ? "" : " collapsed");
 
+      const projLabelsHtml = (proj.labels && proj.labels.length > 0)
+        ? `<div class="project-labels">${proj.labels.map(l => `
+            <span class="label-badge" style="--lbl-color: ${escapeHtml(l.color)};" title="${escapeHtml(l.name)}">
+              <span class="label-dot" style="background-color: ${escapeHtml(l.color)};"></span>
+              ${escapeHtml(l.name)}
+            </span>
+          `).join("")}</div>`
+        : "";
+
       const headerEl = document.createElement("div");
       headerEl.className = "project-header";
       headerEl.innerHTML = `
-        <span class="project-arrow">▼</span>
-        <span class="project-title" title="${escapeHtml(proj.workspaceUri || proj.name)}">📁 ${escapeHtml(
-        proj.name
-      )}</span>
-        <span class="project-count">${filteredConvos.length}</span>
-        <div class="project-reorder-actions">
-          <button class="reorder-btn btn-rename-proj" title="Rename project folder">✏️</button>
-          <button class="reorder-btn btn-delete-proj" title="Delete project folder" ${
-            filteredConvos.length > 0 ? "style='opacity:0.3;cursor:not-allowed;' disabled" : ""
-          }>🗑️</button>
-          <button class="reorder-btn btn-up" title="Move folder up" ${
-            index === 0 ? "disabled style='opacity:0.3;cursor:default;'" : ""
-          }>▲</button>
-          <button class="reorder-btn btn-down" title="Move folder down" ${
-            index === state.projects.length - 1 ? "disabled style='opacity:0.3;cursor:default;'" : ""
-          }>▼</button>
+        <div class="project-header-main">
+          <span class="project-arrow">▼</span>
+          <span class="project-title" title="${escapeHtml(proj.workspaceUri || proj.name)}">📁 ${escapeHtml(
+          proj.name
+        )}</span>
+          <span class="project-count">${filteredConvos.length}</span>
+          <div class="project-reorder-actions">
+            <button class="reorder-btn btn-proj-labels" title="${escapeHtml(t("projectLabelsTitle"))}">🏷️</button>
+            <button class="reorder-btn btn-rename-proj" title="Rename project folder">✏️</button>
+            <button class="reorder-btn btn-delete-proj" title="Delete project folder" ${
+              filteredConvos.length > 0 ? "style='opacity:0.3;cursor:not-allowed;' disabled" : ""
+            }>🗑️</button>
+            <button class="reorder-btn btn-up" title="Move folder up" ${
+              index === 0 ? "disabled style='opacity:0.3;cursor:default;'" : ""
+            }>▲</button>
+            <button class="reorder-btn btn-down" title="Move folder down" ${
+              index === state.projects.length - 1 ? "disabled style='opacity:0.3;cursor:default;'" : ""
+            }>▼</button>
+          </div>
         </div>
+        ${projLabelsHtml}
       `;
 
       // Accordion Toggle: only toggles on clicking header
@@ -736,6 +1078,19 @@
       });
 
       // Project Actions
+      const btnLabelsProj = headerEl.querySelector(".btn-proj-labels");
+      if (btnLabelsProj) {
+        btnLabelsProj.addEventListener("click", (e) => {
+          e.stopPropagation();
+          openLabelPicker({
+            targetType: "project",
+            targetId: proj.id,
+            targetName: proj.name,
+            currentLabels: proj.labels || []
+          });
+        });
+      }
+
       const btnRenameProj = headerEl.querySelector(".btn-rename-proj");
       if (btnRenameProj) {
         btnRenameProj.addEventListener("click", (e) => {
@@ -764,31 +1119,30 @@
       }
 
       const btnDeleteProj = headerEl.querySelector(".btn-delete-proj");
-      if (btnDeleteProj && filteredConvos.length === 0) {
+      if (btnDeleteProj) {
         btnDeleteProj.addEventListener("click", (e) => {
           e.stopPropagation();
           showModal({
             type: "danger",
             symbol: "!",
-            title: "Delete Project Folder?",
+            title: "Delete Project Folder",
             targetName: proj.name,
-            targetSub: "0 conversations",
-            description: "Are you sure you want to delete this empty project folder? This action cannot be undone.",
+            description: `Are you sure you want to delete the project folder "${proj.name}"? This action cannot be undone.`,
             confirmText: "Delete",
-            confirmClass: "destructive",
+            confirmClass: "danger",
             onConfirm: () => {
               vscode.postMessage({
                 type: "executeDeleteProject",
-                projectId: proj.id,
-                projectName: proj.name
+                projectId: proj.id
               });
             }
           });
         });
       }
 
+      // Reorder buttons
       const btnUp = headerEl.querySelector(".btn-up");
-      if (btnUp && index > 0) {
+      if (btnUp) {
         btnUp.addEventListener("click", (e) => {
           e.stopPropagation();
           reorderProject(proj.id, -1);
@@ -796,7 +1150,7 @@
       }
 
       const btnDown = headerEl.querySelector(".btn-down");
-      if (btnDown && index < state.projects.length - 1) {
+      if (btnDown) {
         btnDown.addEventListener("click", (e) => {
           e.stopPropagation();
           reorderProject(proj.id, 1);
@@ -822,6 +1176,15 @@
         const sizeKb = (convo.dbSizeBytes / 1024).toFixed(0);
         const dateStr = convo.lastModifiedTime ? formatTime(convo.lastModifiedTime) : "";
 
+        const convoLabelsHtml = (convo.labels && convo.labels.length > 0)
+          ? `<div class="conversation-labels">${convo.labels.map(l => `
+              <span class="label-badge" style="--lbl-color: ${escapeHtml(l.color)};" title="${escapeHtml(l.name)}">
+                <span class="label-dot" style="background-color: ${escapeHtml(l.color)};"></span>
+                ${escapeHtml(l.name)}
+              </span>
+            `).join("")}</div>`
+          : "";
+
         itemEl.innerHTML = `
           <div class="conversation-content">
             <div class="conversation-top-row">
@@ -834,6 +1197,7 @@
                   : `<button class="action-btn switch" title="${escapeHtml(t("switch"))}">⚡ ${escapeHtml(t("switch"))}</button>`
               }
             </div>
+            ${convoLabelsHtml}
             ${preferences.showPreview !== false && convo.preview ? `<div class="conversation-preview" title="${escapeHtml(convo.preview)}">${escapeHtml(convo.preview)}</div>` : ""}
             <div class="conversation-bottom-row">
               <div class="conversation-meta">
@@ -842,6 +1206,11 @@
                 ${dateStr ? `<span>• ${dateStr}</span>` : ""}
               </div>
               <div class="conversation-actions">
+                <button class="action-icon-btn label" title="${escapeHtml(t("assignLabels"))}">
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M2 2a1 1 0 0 1 1-1h4.586a1 1 0 0 1 .707.293l7 7a1 1 0 0 1 0 1.414l-4.586 4.586a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 2 6.586V2zm3.5 4a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/>
+                  </svg>
+                </button>
                 <button class="action-icon-btn rename" title="${escapeHtml(t("rename"))}">
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
                     <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/>
@@ -923,6 +1292,20 @@
           btnSwitch.addEventListener("click", (e) => {
             e.stopPropagation();
             triggerSwitch();
+          });
+        }
+
+        // Assign Labels to Conversation
+        const btnLabel = itemEl.querySelector(".action-icon-btn.label");
+        if (btnLabel) {
+          btnLabel.addEventListener("click", (e) => {
+            e.stopPropagation();
+            openLabelPicker({
+              targetType: "conversation",
+              targetId: convo.id,
+              targetName: convo.title,
+              currentLabels: convo.labels || []
+            });
           });
         }
 
