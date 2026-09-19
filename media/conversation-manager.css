@@ -758,28 +758,37 @@ a {
 /* ========================================================= */
 
 .developer-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  min-width: 0;
-  min-height: 34px;
-  padding: 7px 9px 8px;
-  border-top: 1px solid var(--ag-border);
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 6px !important;
+  min-width: 0 !important;
+  min-height: 28px !important;
+  padding: 5px 6px !important;
+  border-top: 1px solid var(--ag-border) !important;
   background: var(--ag-surface);
-  color: var(--ag-muted);
-  font-size: 9px;
-  flex-shrink: 0;
+  color: var(--ag-muted) !important;
+  font-size: 10px !important;
+  user-select: none !important;
+  flex: 0 0 auto !important;
 }
 
 .developer-footer-copy {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  display: flex !important;
+  align-items: center !important;
+  gap: 3px !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+  font-size: 10px !important;
+  letter-spacing: -0.1px !important;
+}
+
+.footer-prefix {
+  opacity: 0.8 !important;
+  font-size: 9.5px !important;
+  margin-right: 1px !important;
 }
 
 .developer-footer strong {
@@ -787,14 +796,16 @@ a {
   font-weight: 600;
 }
 
-.developer-footer a {
+.developer-footer a,
+.developer-footer .developer-link {
   color: var(--ag-link);
   text-decoration: none;
   font-weight: 600;
   cursor: pointer;
 }
 
-.developer-footer a:hover {
+.developer-footer a:hover,
+.developer-footer .developer-link:hover {
   text-decoration: underline;
 }
 
@@ -802,6 +813,7 @@ a {
   flex: 0 0 auto;
   font-variant-numeric: tabular-nums;
   opacity: 0.8;
+  font-size: 9.5px;
 }
 
 /* ========================================================= */
@@ -981,11 +993,35 @@ a {
 
 .settings-footer {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
   gap: 6px;
-  padding: 9px 12px;
+  padding: 9px 11px;
   border-top: 1px solid var(--ag-border);
   background: var(--ag-surface);
+}
+
+.settings-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.settings-footer .btn-reset {
+  background: transparent;
+  color: var(--ag-muted);
+  border: 1px solid var(--ag-border);
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.settings-footer .btn-reset:hover {
+  color: var(--ag-fg);
+  background: var(--ag-hover);
+  border-color: var(--vscode-focusBorder, var(--ag-focus));
 }
 
 .about-row {

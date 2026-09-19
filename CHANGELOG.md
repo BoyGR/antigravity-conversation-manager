@@ -9,7 +9,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Changed
 - **Transparent Extension Icon Branding**:
   - Replaced the dark boxed rounded square background on the official extension icon (`icon.png`) with a clean, 100% transparent PNG background.
-  - Retained the signature Antigravity double chat bubbles and 'A' orbital swoosh, scaled proportionally (~85% canvas fill) for crisp rendering across VS Code dark and light themes at all DPI resolutions.
+- **UI/UX Consistency with Antigravity Account Switcher**:
+  - **Developer Footer**: Matched the footer layout 1:1, including dynamic localized prefix (`Developed by` / `Dikembangkan oleh`), developer display name `Boy Gilang Ramadhan (BoyGR)`, external link metadata, and aligned font sizing.
+  - **Reset Configuration Option**: Added `Reset to Default` button in the Settings modal footer, restoring preferences to standard factory values.
+  - **Settings Modal Polish**: Updated About section with dynamic versioning and external website link.
 
 ---
 

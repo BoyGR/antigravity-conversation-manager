@@ -107,7 +107,11 @@
       conversationLabelsTitle: "Conversation Labels",
       noLabelsYet: "No labels created yet.",
       assignLabels: "Assign Labels",
-      filterByLabel: "Filter by label"
+      filterByLabel: "Filter by label",
+      developedBy: "Developed by",
+      resetToDefault: "Reset to Default",
+      resetSettingsNotice: "Settings reset to defaults. Click Save to apply.",
+      website: "Website"
     },
     id: {
       appName: "Antigravity Conversation Manager",
@@ -173,7 +177,11 @@
       conversationLabelsTitle: "Label Percakapan",
       noLabelsYet: "Belum ada label yang dibuat.",
       assignLabels: "Pasang Label",
-      filterByLabel: "Filter berdasarkan label"
+      filterByLabel: "Filter berdasarkan label",
+      developedBy: "Dikembangkan oleh",
+      resetToDefault: "Atur Ulang Default",
+      resetSettingsNotice: "Pengaturan dikembalikan ke default. Klik Simpan untuk menerapkan.",
+      website: "Situs Web"
     }
   };
 
@@ -221,6 +229,15 @@
     }
     if (btnNewProject) btnNewProject.title = t("newProjectTitle");
     if (btnImport) btnImport.title = t("importBundle");
+    const footerPrefix = document.querySelector(".footer-prefix");
+    if (footerPrefix) {
+      footerPrefix.textContent = t("developedBy");
+    }
+    if (devLink) {
+      devLink.textContent = "Boy Gilang Ramadhan (BoyGR)";
+      devLink.title = "https://boygr.com";
+      devLink.setAttribute("data-external-url", "https://boygr.com");
+    }
   }
 
   function openSettings() {
@@ -242,6 +259,21 @@
     ui.settingsOpen = false;
     ui.settingsDraft = null;
     applyTheme(preferences.theme);
+    renderSettingsModal();
+  }
+
+  function resetSettingsToDefault() {
+    ui.settingsDraft = {
+      theme: "vscode",
+      language: "auto",
+      defaultExportFormat: "bundle",
+      showPreview: true,
+      confirmActions: true,
+      autoBackupBeforeMove: true,
+      customAntigravityPath: "",
+      pythonPath: ""
+    };
+    applyTheme(ui.settingsDraft.theme);
     renderSettingsModal();
   }
 
@@ -386,18 +418,32 @@
               <h3>${escapeHtml(t("about"))}</h3>
               <div class="about-row">
                 <span>${escapeHtml(t("appName"))}</span>
-                <span>v0.2.0</span>
+                <span>v${escapeHtml(state.version || "0.3.2")}</span>
               </div>
               <div class="about-row">
                 <span>${escapeHtml(t("developer"))}</span>
-                <span>Boy Gilang Ramadhan</span>
+                <span>Boy Gilang Ramadhan (BoyGR)</span>
+              </div>
+              <div class="about-row">
+                <span>${escapeHtml(t("website"))}</span>
+                <a href="https://boygr.com" class="developer-link" style="color: var(--ag-link); text-decoration: none; font-weight: 500;">boygr.com</a>
               </div>
             </div>
           </div>
 
           <footer class="settings-footer">
-            <button type="button" class="btn" id="btn-cancel-settings">${escapeHtml(t("cancel"))}</button>
-            <button type="button" class="btn primary-btn" id="btn-save-settings">${escapeHtml(t("saveSettings"))}</button>
+            <button
+              type="button"
+              class="btn btn-reset"
+              id="btn-reset-settings"
+              title="${escapeHtml(t("resetToDefault"))}"
+            >
+              ${escapeHtml(t("resetToDefault"))}
+            </button>
+            <div class="settings-footer-actions">
+              <button type="button" class="btn" id="btn-cancel-settings">${escapeHtml(t("cancel"))}</button>
+              <button type="button" class="btn primary-btn" id="btn-save-settings">${escapeHtml(t("saveSettings"))}</button>
+            </div>
           </footer>
         </section>
       </div>
@@ -406,6 +452,7 @@
     const closeBtn = document.getElementById("btn-close-settings");
     const cancelBtn = document.getElementById("btn-cancel-settings");
     const saveBtn = document.getElementById("btn-save-settings");
+    const resetBtn = document.getElementById("btn-reset-settings");
     const quickBackupBtn = document.getElementById("btn-quick-backup");
     const quickRestoreBtn = document.getElementById("btn-quick-restore");
     const backdropEl = document.getElementById("settings-backdrop");
@@ -413,6 +460,7 @@
     if (closeBtn) closeBtn.addEventListener("click", cancelSettings);
     if (cancelBtn) cancelBtn.addEventListener("click", cancelSettings);
     if (saveBtn) saveBtn.addEventListener("click", saveSettings);
+    if (resetBtn) resetBtn.addEventListener("click", resetSettingsToDefault);
     if (backdropEl) {
       backdropEl.addEventListener("click", (e) => {
         if (e.target === backdropEl) cancelSettings();
@@ -500,6 +548,14 @@
         preferences = { ...preferences, ...msg.preferences };
         applyTheme(preferences.theme);
         updateUiTexts();
+      }
+
+      if (msg.version) {
+        state.version = msg.version;
+        const versionEl = document.querySelector(".footer-version");
+        if (versionEl) {
+          versionEl.textContent = `v${msg.version}`;
+        }
       }
 
       const projectsJson = JSON.stringify(msg.projects || []);

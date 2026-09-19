@@ -346,7 +346,8 @@ export class ConversationWebviewProvider implements vscode.WebviewViewProvider {
         activeConversationId,
         allLabels,
         baseDir: this._store.getPaths().baseDir,
-        preferences
+        preferences,
+        version: "0.3.2"
       });
     } catch (err: any) {
       this._view.webview.postMessage({
@@ -408,7 +409,7 @@ export class ConversationWebviewProvider implements vscode.WebviewViewProvider {
     <footer class="developer-footer">
       <div class="developer-footer-copy">
         <span class="footer-prefix">Developed by</span>
-        <a href="https://boygr.com" id="developer-link" class="developer-link" title="https://boygr.com">Boy Gilang Ramadhan</a>
+        <a href="https://boygr.com" id="developer-link" class="developer-link" title="https://boygr.com" data-external-url="https://boygr.com">Boy Gilang Ramadhan (BoyGR)</a>
       </div>
       <span class="footer-version">v0.3.2</span>
     </footer>
