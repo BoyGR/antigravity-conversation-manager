@@ -40,10 +40,7 @@ export class LabelManager {
       version: 1,
       labels: [
         { id: "lbl-work", name: "Work", color: "#3b82f6" },
-        { id: "lbl-personal", name: "Personal", color: "#10b981" },
-        { id: "lbl-feature", name: "Feature", color: "#8b5cf6" },
-        { id: "lbl-bug", name: "Bug", color: "#ef4444" },
-        { id: "lbl-research", name: "Research", color: "#f59e0b" }
+        { id: "lbl-personal", name: "Personal", color: "#10b981" }
       ],
       projectLabels: {},
       conversationLabels: {}
