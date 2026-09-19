@@ -4,6 +4,22 @@ All notable changes to the **Antigravity Conversation Manager** extension will b
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3] - 2026-09-20
+
+### Added
+- **Extension Icon in Settings About Section**: The extension's logo (`icon.png`) now appears prominently in the About section of the Settings modal, matching the visual pattern of Antigravity Account Switcher.
+
+### Changed
+- **README Improvements**:
+  - Broadened the intro tagline to mention all VS Code-compatible editors (VS Code, Antigravity IDE, Cursor, Windsurf, VSCodium).
+  - Standardized the License section format to match `antigravity-account-switcher`, including Author, MIT License link, and Google LLC disclaimer.
+
+### Chore
+- Removed redundant duplicate `media/sidebar-icon.svg` asset (identical copy of `antigravity.svg`). The `media/` folder now contains exactly 5 essential production files.
+- Fixed `build-font.js` root path resolution (`path.resolve(__dirname, '../..')`) for correct operation from the `.bgr/scripts/` directory.
+
+---
+
 ## [0.3.2] - 2026-09-19
 
 ### Changed
