@@ -4,7 +4,7 @@
   <img src="media/icon.png" width="128" height="128" alt="Antigravity Conversation Manager Logo" />
 </p>
 
-Manage, organize, switch, move, export, import, and backup Google Antigravity conversations across Visual Studio Code, Antigravity IDE, and Cursor.
+Manage, organize, switch, move, export, import, and backup Google Antigravity conversations across any VS Code-compatible editor — including Visual Studio Code, Antigravity IDE, Cursor, Windsurf, and VSCodium.
 
 ---
 
