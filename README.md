@@ -107,4 +107,6 @@ npm run package:vsix
 
 ## License
 
-MIT © [Boy Gilang Ramadhan](https://boygr.com)
+- **Author**: [Boy Gilang Ramadhan](https://boygr.com)
+- **License**: [MIT License](LICENSE)
+- **Disclaimer**: Not affiliated with or endorsed by Google LLC. Google Antigravity is a trademark of Google LLC.
