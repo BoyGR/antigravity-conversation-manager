@@ -4,6 +4,17 @@ All notable changes to the **Antigravity Conversation Manager** extension will b
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.4] - 2026-09-21
+
+### Fixed
+- **Linux, WSL2, and Standalone Antigravity IDE Compatibility (Issue #1)**:
+  - **Direct Session Scanner Fallback**: When running inside Google Antigravity Standalone IDE (where centralized `conversation_summaries.db` is not produced), the dashboard now directly scans and loads individual `conversations/*.db` databases and extracts titles, previews, step counts, and workspace mapping without failing.
+  - **Tilde (`~`) Path Expansion**: Settings paths such as `~/.gemini/antigravity` entered in `customAntigravityPath` or `pythonPath` are now properly expanded using `os.homedir()`.
+  - **Linux / WSL Python Executable Resolution**: Prioritizes `python3`, `/usr/bin/python3`, and `/usr/local/bin/python3` on non-Windows environments to avoid `ENOENT` on Ubuntu/Debian where `python` is not available on PATH.
+  - **Cross-Platform Storage Roots**: Expanded active session and project order discovery to inspect Linux XDG config (`~/.config`), macOS `~/Library/Application Support`, and Windows `%APPDATA%`.
+
+---
+
 ## [0.3.3] - 2026-09-20
 
 ### Added

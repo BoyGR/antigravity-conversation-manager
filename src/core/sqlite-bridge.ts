@@ -4,6 +4,8 @@ import * as path from "path";
 import * as os from "os";
 import * as vscode from "vscode";
 
+import { AntigravityPaths, expandTilde } from "./antigravity-paths";
+
 export interface SqliteQueryResult<T = any> {
   success: boolean;
   rows?: T[];
@@ -19,10 +21,11 @@ export class SqliteBridge {
       return this.pythonCommand;
     }
 
-    // 1. Check user configuration
+    // 1. Check user configuration with tilde expansion
     try {
       const config = vscode.workspace.getConfiguration("boygr.antigravityConversationManager");
-      const configuredPath = config.get<string>("pythonPath")?.trim();
+      const rawConfiguredPath = config.get<string>("pythonPath")?.trim();
+      const configuredPath = rawConfiguredPath ? expandTilde(rawConfiguredPath) : "";
       if (configuredPath && fs.existsSync(configuredPath)) {
         const works = await this.testCommand(configuredPath);
         if (works) {
@@ -32,27 +35,42 @@ export class SqliteBridge {
       }
     } catch {}
 
-    // 2. Build candidate list
-    const candidates: string[] = ["python", "python3", "py"];
+    // 2. Build candidate list based on platform
+    const candidates: string[] = [];
 
-    const localAppData = process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local");
-    const programFiles = process.env.ProgramFiles || "C:\\Program Files";
+    if (process.platform === "win32") {
+      candidates.push("python", "python3", "py");
 
-    // Known common Windows python paths
-    const pythonDirs = [
-      path.join(localAppData, "Programs", "Python", "Python312", "python.exe"),
-      path.join(localAppData, "Programs", "Python", "Python313", "python.exe"),
-      path.join(localAppData, "Programs", "Python", "Python311", "python.exe"),
-      path.join(localAppData, "Programs", "Python", "Python310", "python.exe"),
-      path.join(localAppData, "Programs", "Python", "Launcher", "py.exe"),
-      path.join(programFiles, "Python312", "python.exe"),
-      path.join(programFiles, "Python311", "python.exe")
-    ];
+      const localAppData = process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local");
+      const programFiles = process.env.ProgramFiles || "C:\\Program Files";
 
-    for (const p of pythonDirs) {
-      if (fs.existsSync(p)) {
-        candidates.push(p);
+      // Known common Windows python paths
+      const pythonDirs = [
+        path.join(localAppData, "Programs", "Python", "Python312", "python.exe"),
+        path.join(localAppData, "Programs", "Python", "Python313", "python.exe"),
+        path.join(localAppData, "Programs", "Python", "Python311", "python.exe"),
+        path.join(localAppData, "Programs", "Python", "Python310", "python.exe"),
+        path.join(localAppData, "Programs", "Python", "Launcher", "py.exe"),
+        path.join(programFiles, "Python312", "python.exe"),
+        path.join(programFiles, "Python311", "python.exe")
+      ];
+
+      for (const p of pythonDirs) {
+        if (fs.existsSync(p)) {
+          candidates.push(p);
+        }
       }
+    } else {
+      // Linux / WSL / macOS: prioritize python3 over python
+      candidates.push(
+        "python3",
+        "/usr/bin/python3",
+        "/usr/local/bin/python3",
+        "/bin/python3",
+        "python",
+        "/usr/bin/python",
+        "/usr/local/bin/python"
+      );
     }
 
     // 3. Test candidates

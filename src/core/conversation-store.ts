@@ -47,25 +47,47 @@ export class ConversationStore {
 
     // 1. Load authoritative project definitions from ~/.gemini/config/projects/*.json
     const knownProjects = this.loadKnownProjects();
-
-    // 2. Query conversations from conversation_summaries.db
-    const sql = `
-      SELECT 
-        conversation_id,
-        title,
-        preview,
-        step_count,
-        last_modified_time,
-        workspace_uris,
-        status,
-        project_id,
-        agent_name
-      FROM conversation_summaries
-      ORDER BY last_modified_time DESC
-    `;
-
-    const rows = await SqliteBridge.query(this.paths.conversationSummariesDb, sql);
     const labelMgr = LabelManager.getInstance(this.paths);
+
+    let rows: any[] = [];
+    let querySuccess = false;
+
+    // 2. Query conversations from conversation_summaries.db if available
+    if (this.paths.hasSummariesDb && fs.existsSync(this.paths.conversationSummariesDb)) {
+      try {
+        const sql = `
+          SELECT 
+            conversation_id,
+            title,
+            preview,
+            step_count,
+            last_modified_time,
+            workspace_uris,
+            status,
+            project_id,
+            agent_name
+          FROM conversation_summaries
+          ORDER BY last_modified_time DESC
+        `;
+        rows = await SqliteBridge.query(this.paths.conversationSummariesDb, sql);
+        querySuccess = true;
+      } catch (err) {
+        console.warn("Could not query conversation_summaries.db, falling back to direct conversation scan:", err);
+      }
+    }
+
+    // 3. If central summaries DB is absent, failed, or empty, scan individual conversations/<id>.db
+    if (!querySuccess || rows.length === 0) {
+      if (this.paths.hasConversationDbs || fs.existsSync(this.paths.conversationsDir)) {
+        const scannedProjects = await this.scanIndividualConversationDbs(knownProjects, labelMgr);
+        if (scannedProjects.length > 0) {
+          return this.sortProjects(scannedProjects);
+        }
+      }
+      if (!querySuccess) {
+        return [];
+      }
+    }
 
     const projectMap = new Map<string, ProjectGroup>();
 
@@ -81,9 +103,11 @@ export class ConversationStore {
       });
     }
 
+    const customTitles = this.loadCustomTitles();
+
     for (const r of rows) {
       const id = r.conversation_id as string;
-      const title = (r.title as string) || (r.preview as string) || "Untitled Conversation";
+      const title = customTitles[id] || (r.title as string) || (r.preview as string) || "Untitled Conversation";
       const preview = (r.preview as string) || "";
       const stepCount = (r.step_count as number) || 0;
       const lastModifiedTime = (r.last_modified_time as string) || "";
@@ -152,9 +176,11 @@ export class ConversationStore {
       projectMap.get(projectId)!.conversations.push(item);
     }
 
-    // 3. Sort projects according to Antigravity's projectsOrder
+    return this.sortProjects(Array.from(projectMap.values()));
+  }
+
+  private async sortProjects(projectList: ProjectGroup[]): Promise<ProjectGroup[]> {
     const knownProjectOrder: string[] = await this.loadProjectsOrder();
-    const projectList: ProjectGroup[] = Array.from(projectMap.values());
 
     if (knownProjectOrder.length > 0) {
       projectList.sort((a, b) => {
@@ -170,6 +196,226 @@ export class ConversationStore {
     }
 
     return projectList;
+  }
+
+  private getCustomTitlesPath(): string {
+    return path.join(this.paths.baseDir, "acm_custom_titles.json");
+  }
+
+  private loadCustomTitles(): Record<string, string> {
+    try {
+      const p = this.getCustomTitlesPath();
+      if (fs.existsSync(p)) {
+        return JSON.parse(fs.readFileSync(p, "utf-8"));
+      }
+    } catch {}
+    return {};
+  }
+
+  private saveCustomTitle(conversationId: string, title: string): void {
+    try {
+      const p = this.getCustomTitlesPath();
+      const existing = this.loadCustomTitles();
+      existing[conversationId] = title;
+      fs.writeFileSync(p, JSON.stringify(existing, null, 2), "utf-8");
+    } catch {}
+  }
+
+  /**
+   * Scans individual conversation databases (<uuid>.db) directly.
+   * Used in Antigravity Standalone IDE or environments where conversation_summaries.db is not maintained.
+   */
+  private async scanIndividualConversationDbs(
+    knownProjects: Map<string, { id: string; name: string; folderUri?: string }>,
+    labelMgr: LabelManager
+  ): Promise<ProjectGroup[]> {
+    if (!fs.existsSync(this.paths.conversationsDir)) {
+      return [];
+    }
+
+    let files: string[] = [];
+    try {
+      files = fs.readdirSync(this.paths.conversationsDir).filter((f) => f.endsWith(".db"));
+    } catch {
+      return [];
+    }
+
+    if (files.length === 0) {
+      return [];
+    }
+
+    const projectMap = new Map<string, ProjectGroup>();
+    for (const [pId, pInfo] of knownProjects.entries()) {
+      if (pId === "outside-of-project") continue;
+      projectMap.set(pId, {
+        id: pId,
+        name: pInfo.name,
+        workspaceUri: pInfo.folderUri,
+        conversations: [],
+        labels: labelMgr.getProjectLabels(pId)
+      });
+    }
+
+    const customTitles = this.loadCustomTitles();
+
+    for (const file of files) {
+      const id = path.basename(file, ".db");
+      const dbPath = path.join(this.paths.conversationsDir, file);
+      let dbSizeBytes = 0;
+      let lastModifiedTime = new Date().toISOString();
+
+      try {
+        const st = fs.statSync(dbPath);
+        dbSizeBytes = st.size;
+        lastModifiedTime = st.mtime.toISOString();
+      } catch {}
+
+      const brainDirPath = path.join(this.paths.brainDir, id);
+      const hasBrain = fs.existsSync(brainDirPath);
+
+      // 1. Title and preview extraction
+      let title = customTitles[id] || "";
+      let preview = "";
+
+      // Try reading brain transcript.jsonl first (most accurate for user query)
+      if (hasBrain) {
+        const transcriptPath = path.join(brainDirPath, ".system_generated", "logs", "transcript.jsonl");
+        if (fs.existsSync(transcriptPath)) {
+          try {
+            const fd = fs.openSync(transcriptPath, "r");
+            const buf = Buffer.alloc(8192);
+            const bytesRead = fs.readSync(fd, buf, 0, 8192, 0);
+            fs.closeSync(fd);
+            const text = buf.toString("utf-8", 0, bytesRead);
+            const lines = text.split("\n");
+            for (const line of lines) {
+              if (!line.trim()) continue;
+              try {
+                const step = JSON.parse(line);
+                if (step.type === "USER_INPUT" && step.content) {
+                  let raw = String(step.content).trim();
+                  const reqMatch = raw.match(/<USER_REQUEST>([\s\S]*?)<\/USER_REQUEST>/i);
+                  if (reqMatch) {
+                    raw = reqMatch[1].trim();
+                  }
+                  raw = raw.replace(/\r?\n/g, " ").replace(/\s+/g, " ");
+                  if (!title) {
+                    title = raw.length > 60 ? raw.slice(0, 57) + "..." : raw;
+                  }
+                  preview = raw.length > 120 ? raw.slice(0, 117) + "..." : raw;
+                  if (step.created_at) {
+                    lastModifiedTime = step.created_at;
+                  }
+                  break;
+                }
+              } catch {}
+            }
+          } catch {}
+        }
+      }
+
+      // 2. Query stepCount from steps table
+      let stepCount = 0;
+      try {
+        const countRows = await SqliteBridge.query<{ cnt: number }>(dbPath, "SELECT COUNT(*) as cnt FROM steps;");
+        if (countRows && countRows.length > 0) {
+          stepCount = countRows[0].cnt || 0;
+        }
+      } catch {}
+
+      if (!title) {
+        title = `Conversation ${id.slice(0, 8)}`;
+      }
+
+      // 3. Extract workspace URI and project from trajectory_metadata_blob
+      const workspaceUris: string[] = [];
+      let projectId = "default";
+      let projectName = "Antigravity Project";
+
+      try {
+        const blobRows = await SqliteBridge.query(
+          dbPath,
+          "SELECT data FROM trajectory_metadata_blob WHERE id = 'main';"
+        );
+        if (blobRows && blobRows.length > 0 && blobRows[0].data) {
+          let blobBuffer: Buffer;
+          const rawBlob = blobRows[0].data;
+          if (typeof rawBlob === "object" && rawBlob.__type === "bytes_base64") {
+            blobBuffer = Buffer.from(rawBlob.data, "base64");
+          } else if (Buffer.isBuffer(rawBlob)) {
+            blobBuffer = rawBlob;
+          } else {
+            blobBuffer = Buffer.from(rawBlob);
+          }
+
+          const blobStr = blobBuffer.toString("utf-8");
+          const uriMatches = blobStr.match(/file:\/\/\/[^\x00-\x1f\s"'<>]+/g);
+          if (uriMatches && uriMatches.length > 0) {
+            const cleanUri = uriMatches[0].replace(/[\x00-\x1f].*$/, "");
+            workspaceUris.push(cleanUri);
+          }
+
+          for (const [kId, pInfo] of knownProjects.entries()) {
+            if (blobStr.includes(kId)) {
+              projectId = kId;
+              projectName = pInfo.name;
+              break;
+            }
+          }
+        }
+      } catch {}
+
+      if (projectId === "default" && workspaceUris.length > 0) {
+        const cleanUri = workspaceUris[0].toLowerCase();
+        for (const [kId, pInfo] of knownProjects.entries()) {
+          if (pInfo.folderUri && cleanUri.includes(pInfo.folderUri.toLowerCase())) {
+            projectId = kId;
+            projectName = pInfo.name;
+            break;
+          }
+        }
+        if (projectId === "default") {
+          try {
+            const decoded = decodeURIComponent(workspaceUris[0].replace(/^file:\/\/\/?/, ""));
+            const base = path.basename(decoded);
+            if (base) {
+              projectName = base;
+              projectId = `folder-${base.toLowerCase().replace(/[^a-z0-9_-]/g, "-")}`;
+            }
+          } catch {}
+        }
+      }
+
+      const item: ConversationItem = {
+        id,
+        title,
+        preview,
+        stepCount,
+        lastModifiedTime,
+        workspaceUris,
+        status: "COMPLETED",
+        projectId,
+        projectName,
+        agentName: "Antigravity Agent",
+        hasBrain,
+        dbSizeBytes,
+        labels: labelMgr.getConversationLabels(id)
+      };
+
+      if (!projectMap.has(projectId)) {
+        projectMap.set(projectId, {
+          id: projectId,
+          name: projectName,
+          workspaceUri: workspaceUris[0] || "",
+          conversations: [],
+          labels: labelMgr.getProjectLabels(projectId)
+        });
+      }
+
+      projectMap.get(projectId)!.conversations.push(item);
+    }
+
+    return Array.from(projectMap.values());
   }
 
   private loadKnownProjects(): Map<string, { id: string; name: string; folderUri?: string }> {
@@ -302,9 +548,18 @@ export class ConversationStore {
     }
 
     try {
-      const sql = "UPDATE conversation_summaries SET title = ? WHERE conversation_id = ?;";
-      await SqliteBridge.executeUpdate(this.paths.conversationSummariesDb, sql, [trimmed, conversationId]);
-      await SqliteBridge.checkpointWal(this.paths.conversationSummariesDb);
+      if (this.paths.hasSummariesDb && fs.existsSync(this.paths.conversationSummariesDb)) {
+        try {
+          const sql = "UPDATE conversation_summaries SET title = ? WHERE conversation_id = ?;";
+          await SqliteBridge.executeUpdate(this.paths.conversationSummariesDb, sql, [trimmed, conversationId]);
+          await SqliteBridge.checkpointWal(this.paths.conversationSummariesDb);
+        } catch (dbErr) {
+          console.warn("Could not update title in conversation_summaries.db:", dbErr);
+        }
+      }
+
+      // Always save to custom titles mapping for standalone IDE support and UI consistency
+      this.saveCustomTitle(conversationId, trimmed);
 
       await this.triggerAntigravityRefresh();
 
@@ -326,10 +581,26 @@ export class ConversationStore {
 
   public async deleteConversation(conversationId: string): Promise<boolean> {
     try {
-      // 1. Delete from conversation_summaries.db
-      const sql = "DELETE FROM conversation_summaries WHERE conversation_id = ?;";
-      await SqliteBridge.executeUpdate(this.paths.conversationSummariesDb, sql, [conversationId]);
-      await SqliteBridge.checkpointWal(this.paths.conversationSummariesDb);
+      // 1. Delete from conversation_summaries.db if it exists
+      if (this.paths.hasSummariesDb && fs.existsSync(this.paths.conversationSummariesDb)) {
+        try {
+          const sql = "DELETE FROM conversation_summaries WHERE conversation_id = ?;";
+          await SqliteBridge.executeUpdate(this.paths.conversationSummariesDb, sql, [conversationId]);
+          await SqliteBridge.checkpointWal(this.paths.conversationSummariesDb);
+        } catch (dbErr) {
+          console.warn("Could not delete from conversation_summaries.db:", dbErr);
+        }
+      }
+
+      // Delete custom title mapping if exists
+      try {
+        const p = this.getCustomTitlesPath();
+        const titles = this.loadCustomTitles();
+        if (titles[conversationId]) {
+          delete titles[conversationId];
+          fs.writeFileSync(p, JSON.stringify(titles, null, 2), "utf-8");
+        }
+      } catch {}
 
       // 2. Delete conversations/<id>.db*
       const convoFiles = [
@@ -375,16 +646,26 @@ export class ConversationStore {
 import os, glob, sqlite3, json, sys
 
 try:
-    appdata = os.environ.get('APPDATA', '')
-    editors = ['Code', 'Antigravity', 'Antigravity IDE', 'Cursor']
+    roots = []
+    if os.environ.get('APPDATA'):
+        roots.append(os.environ['APPDATA'])
+    home = os.path.expanduser('~')
+    roots.append(os.environ.get('XDG_CONFIG_HOME', os.path.join(home, '.config')))
+    roots.append(os.path.join(home, 'Library', 'Application Support'))
+    roots.append(os.path.join(home, 'AppData', 'Roaming'))
+
+    editors = ['Antigravity', 'Antigravity IDE', 'Code', 'Code - Insiders', 'Cursor', 'Windsurf', 'VSCodium']
     candidates = []
-    for ed in editors:
-        ws_pattern = os.path.join(appdata, ed, 'User', 'workspaceStorage', '*', 'state.vscdb')
-        for db_path in glob.glob(ws_pattern):
-            try:
-                candidates.append((os.path.getmtime(db_path), db_path))
-            except Exception:
-                pass
+    for root in roots:
+        if not os.path.isdir(root):
+            continue
+        for ed in editors:
+            ws_pattern = os.path.join(root, ed, 'User', 'workspaceStorage', '*', 'state.vscdb')
+            for db_path in glob.glob(ws_pattern):
+                try:
+                    candidates.append((os.path.getmtime(db_path), db_path))
+                except Exception:
+                    pass
 
     candidates.sort(key=lambda x: x[0], reverse=True)
     active_id = None
@@ -423,47 +704,62 @@ import os, glob, sqlite3, json, sys
 try:
     payload = json.loads(sys.stdin.read())
     target_id = payload["conversationId"]
-    appdata = os.environ.get("APPDATA", "")
-    editors = ["Code", "Antigravity", "Antigravity IDE", "Cursor"]
+    roots = []
+    if os.environ.get('APPDATA'):
+        roots.append(os.environ['APPDATA'])
+    home = os.path.expanduser('~')
+    roots.append(os.environ.get('XDG_CONFIG_HOME', os.path.join(home, '.config')))
+    roots.append(os.path.join(home, 'Library', 'Application Support'))
+    roots.append(os.path.join(home, 'AppData', 'Roaming'))
+
+    editors = ['Antigravity', 'Antigravity IDE', 'Code', 'Code - Insiders', 'Cursor', 'Windsurf', 'VSCodium']
     
     updated_ws = 0
     # 1. Update workspaceStorage
-    for ed in editors:
-        ws_pattern = os.path.join(appdata, ed, "User", "workspaceStorage", "*", "state.vscdb")
-        for db_path in glob.glob(ws_pattern):
-            try:
-                conn = sqlite3.connect(db_path, timeout=5.0)
-                c = conn.cursor()
-                c.execute("SELECT value FROM ItemTable WHERE key = 'google.google-antigravity'")
-                row = c.fetchone()
-                if row:
-                    try:
-                        val = json.loads(row[0])
-                        val["lastConversationId"] = target_id
-                        c.execute("UPDATE ItemTable SET value = ? WHERE key = 'google.google-antigravity'", (json.dumps(val),))
-                        c.execute("INSERT OR REPLACE INTO ItemTable (key, value) VALUES ('antigravity.pendingConversationId', ?)", (target_id,))
-                        conn.commit()
-                        updated_ws += 1
-                    except Exception:
-                        pass
-                conn.close()
-            except Exception:
-                pass
+    for root in roots:
+        if not os.path.isdir(root):
+            continue
+        for ed in editors:
+            ws_pattern = os.path.join(root, ed, "User", "workspaceStorage", "*", "state.vscdb")
+            for db_path in glob.glob(ws_pattern):
+                try:
+                    conn = sqlite3.connect(db_path, timeout=5.0)
+                    c = conn.cursor()
+                    c.execute("SELECT value FROM ItemTable WHERE key = 'google.google-antigravity'")
+                    row = c.fetchone()
+                    if row:
+                        try:
+                            val = json.loads(row[0])
+                            val["lastConversationId"] = target_id
+                            c.execute("UPDATE ItemTable SET value = ? WHERE key = 'google.google-antigravity'", (json.dumps(val),))
+                            c.execute("INSERT OR REPLACE INTO ItemTable (key, value) VALUES ('antigravity.pendingConversationId', ?)", (target_id,))
+                            conn.commit()
+                            updated_ws += 1
+                        except Exception:
+                            pass
+                    conn.close()
+                except Exception:
+                    pass
 
     # 2. Update globalStorage
-    for ed in editors:
-        gs_path = os.path.join(appdata, ed, "User", "globalStorage", "state.vscdb")
-        if os.path.exists(gs_path):
-            try:
-                conn = sqlite3.connect(gs_path, timeout=5.0)
-                c = conn.cursor()
-                c.execute("INSERT OR REPLACE INTO ItemTable (key, value) VALUES ('antigravity.pendingConversationId', ?)", (target_id,))
-                conn.commit()
-                conn.close()
-            except Exception:
-                pass
+    updated_gs = 0
+    for root in roots:
+        if not os.path.isdir(root):
+            continue
+        for ed in editors:
+            gs_path = os.path.join(root, ed, "User", "globalStorage", "state.vscdb")
+            if os.path.exists(gs_path):
+                try:
+                    conn = sqlite3.connect(gs_path, timeout=5.0)
+                    c = conn.cursor()
+                    c.execute("INSERT OR REPLACE INTO ItemTable (key, value) VALUES ('antigravity.pendingConversationId', ?)", (target_id,))
+                    conn.commit()
+                    conn.close()
+                    updated_gs += 1
+                except Exception:
+                    pass
 
-    print(json.dumps({"success": True, "updatedWorkspaces": updated_ws}))
+    print(json.dumps({"success": True, "updatedWorkspaces": updated_ws, "updatedGlobal": updated_gs}))
 except Exception as e:
     print(json.dumps({"success": False, "error": str(e)}))
 `;
