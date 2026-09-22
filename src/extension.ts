@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import * as path from "path";
 import { resolveAntigravityPaths } from "./core/antigravity-paths";
 import { ConversationStore } from "./core/conversation-store";
 import { ConversationMigrator } from "./core/conversation-migrator";
@@ -22,7 +23,14 @@ import { handleBackupAll, handleRestoreBackup } from "./commands/backup-restore"
 
 export function activate(context: vscode.ExtensionContext) {
   const paths = resolveAntigravityPaths();
-  const store = new ConversationStore(paths);
+  const getWorkspaceInfo = () => ({
+    storageDir: context.storageUri ? path.dirname(context.storageUri.fsPath) : undefined,
+    folderUri: vscode.workspace.workspaceFolders?.[0]?.uri.toString(),
+    folderPath: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
+  });
+
+  const store = new ConversationStore(paths, getWorkspaceInfo());
+
   const migrator = new ConversationMigrator(paths);
   const exporter = new ConversationExporter(paths);
   const importer = new ConversationImporter(paths);
@@ -41,6 +49,13 @@ export function activate(context: vscode.ExtensionContext) {
     importer,
     backupService,
     statusBar
+  );
+
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeWorkspaceFolders(() => {
+      store.setWorkspaceContext(getWorkspaceInfo());
+      webviewProvider.refresh();
+    })
   );
 
   context.subscriptions.push(

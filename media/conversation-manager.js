@@ -424,7 +424,7 @@
 
               <div class="about-row">
                 <span>${escapeHtml(t("appName"))}</span>
-                <span>v${escapeHtml(state.version || "0.3.5")}</span>
+                <span>v${escapeHtml(state.version || "0.3.6")}</span>
               </div>
               <div class="about-row">
                 <span>${escapeHtml(t("developer"))}</span>
@@ -1264,7 +1264,7 @@
               ${
                 isActive
                   ? '<span class="badge-active" title="Active conversation">Active</span>'
-                  : `<button class="action-btn switch" title="${escapeHtml(t("switch"))}">⚡ ${escapeHtml(t("switch"))}</button>`
+                  : `<button class="action-btn switch" title="${escapeHtml(t("switch"))}">${escapeHtml(t("switch"))}</button>`
               }
             </div>
             ${convoLabelsHtml}
@@ -1323,7 +1323,7 @@
 
           showModal({
             type: "primary",
-            symbol: "⚡",
+            symbol: "⇄",
             title: `${t("switch")} ${t("conversations")}?`,
             targetName: convo.title,
             targetSub: `${convo.stepCount} steps • ID: ${convo.id.slice(0, 16)}...`,

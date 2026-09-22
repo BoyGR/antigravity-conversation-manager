@@ -29,11 +29,27 @@ export interface ProjectGroup {
   labels: LabelItem[];
 }
 
+export interface WorkspaceContextInfo {
+  storageDir?: string;
+  folderUri?: string;
+  folderPath?: string;
+}
+
 export class ConversationStore {
   private paths: AntigravityPaths;
+  private workspaceContext?: WorkspaceContextInfo;
 
-  constructor(paths?: AntigravityPaths) {
+  constructor(paths?: AntigravityPaths, workspaceContext?: WorkspaceContextInfo) {
     this.paths = paths || resolveAntigravityPaths();
+    this.workspaceContext = workspaceContext;
+  }
+
+  public setWorkspaceContext(context?: WorkspaceContextInfo): void {
+    this.workspaceContext = context;
+  }
+
+  public getWorkspaceContext(): WorkspaceContextInfo | undefined {
+    return this.workspaceContext;
   }
 
   public getPaths(): AntigravityPaths {
@@ -643,9 +659,41 @@ export class ConversationStore {
 
   public async getActiveConversationId(): Promise<string | null> {
     const pyScript = `
-import os, glob, sqlite3, json, sys
+import os, glob, sqlite3, json, sys, urllib.parse
 
 try:
+    payload = {}
+    try:
+        raw_in = sys.stdin.read()
+        if raw_in.strip():
+            payload = json.loads(raw_in)
+    except Exception:
+        pass
+
+    storage_dir = payload.get('storageDir')
+    folder_uri = payload.get('folderUri')
+    folder_path = payload.get('folderPath')
+
+    active_id = None
+
+    # Priority 1: Direct workspaceStorage directory from context.storageUri
+    if storage_dir and os.path.isdir(storage_dir):
+        db_path = os.path.join(storage_dir, 'state.vscdb')
+        if os.path.exists(db_path):
+            try:
+                conn = sqlite3.connect(db_path, timeout=2.0)
+                c = conn.cursor()
+                c.execute("SELECT value FROM ItemTable WHERE key = 'google.google-antigravity'")
+                row = c.fetchone()
+                conn.close()
+                if row:
+                    val = json.loads(row[0])
+                    cid = val.get('lastConversationId')
+                    if cid:
+                        active_id = cid
+            except Exception:
+                pass
+
     roots = []
     if os.environ.get('APPDATA'):
         roots.append(os.environ['APPDATA'])
@@ -654,7 +702,6 @@ try:
     roots.append(os.path.join(home, 'Library', 'Application Support'))
     roots.append(os.path.join(home, 'AppData', 'Roaming'))
 
-    # If running inside WSL, also inspect Windows host AppData mounted under /mnt/c
     if os.path.exists('/mnt/c/Users'):
         try:
             for u in os.listdir('/mnt/c/Users'):
@@ -665,8 +712,6 @@ try:
             pass
 
     editors = ['Antigravity', 'Antigravity IDE', 'Code', 'Code - Insiders', 'Cursor', 'Windsurf', 'VSCodium']
-
-    # Remote Extension Host server roots (WSL, Remote SSH, Containers)
     server_roots = [
         os.path.join(home, '.antigravity-ide-server', 'data', 'User'),
         os.path.join(home, '.vscode-server', 'data', 'User'),
@@ -675,48 +720,103 @@ try:
         os.path.join(home, '.windsurf-server', 'data', 'User'),
     ]
 
-    ws_patterns = []
+    ws_storage_dirs = []
     for root in roots:
         if os.path.isdir(root):
             for ed in editors:
-                ws_patterns.append(os.path.join(root, ed, 'User', 'workspaceStorage', '*', 'state.vscdb'))
+                d = os.path.join(root, ed, 'User', 'workspaceStorage')
+                if os.path.isdir(d):
+                    ws_storage_dirs.append(d)
 
     for s_root in server_roots:
         if os.path.isdir(s_root):
-            ws_patterns.append(os.path.join(s_root, 'workspaceStorage', '*', 'state.vscdb'))
+            d = os.path.join(s_root, 'workspaceStorage')
+            if os.path.isdir(d):
+                ws_storage_dirs.append(d)
 
-    candidates = []
-    for pat in ws_patterns:
-        for db_path in glob.glob(pat):
+    # Priority 2: Match current workspace folder in workspaceStorage/*/workspace.json
+    if not active_id and (folder_uri or folder_path):
+        norm_target_path = os.path.normcase(os.path.abspath(folder_path)) if folder_path else None
+        for wsd in ws_storage_dirs:
             try:
-                candidates.append((os.path.getmtime(db_path), db_path))
+                for entry in os.scandir(wsd):
+                    if entry.is_dir():
+                        wj = os.path.join(entry.path, 'workspace.json')
+                        if os.path.exists(wj):
+                            try:
+                                with open(wj, 'r', encoding='utf-8') as f:
+                                    wdata = json.load(f)
+                                f_val = wdata.get('folder') or wdata.get('workspace')
+                                matched = False
+                                if f_val:
+                                    if folder_uri and f_val.lower() == folder_uri.lower():
+                                        matched = True
+                                    elif norm_target_path:
+                                        parsed = urllib.parse.unquote(f_val)
+                                        if parsed.startswith('file:///'):
+                                            p = parsed[8:]
+                                            if len(p) > 2 and p[1] == ':':
+                                                pass
+                                            elif p.startswith('/'):
+                                                pass
+                                            if os.path.normcase(os.path.abspath(p)) == norm_target_path:
+                                                matched = True
+                                if matched:
+                                    db = os.path.join(entry.path, 'state.vscdb')
+                                    if os.path.exists(db):
+                                        conn = sqlite3.connect(db, timeout=2.0)
+                                        c = conn.cursor()
+                                        c.execute("SELECT value FROM ItemTable WHERE key = 'google.google-antigravity'")
+                                        row = c.fetchone()
+                                        conn.close()
+                                        if row:
+                                            cid = json.loads(row[0]).get('lastConversationId')
+                                            if cid:
+                                                active_id = cid
+                                                break
+                            except Exception:
+                                pass
+                    if active_id:
+                        break
             except Exception:
                 pass
+            if active_id:
+                break
 
-    candidates.sort(key=lambda x: x[0], reverse=True)
-    active_id = None
-    for mtime, db_path in candidates:
-        try:
-            conn = sqlite3.connect(db_path, timeout=2.0)
-            c = conn.cursor()
-            c.execute("SELECT value FROM ItemTable WHERE key = 'google.google-antigravity'")
-            row = c.fetchone()
-            conn.close()
-            if row:
-                val = json.loads(row[0])
-                cid = val.get('lastConversationId')
-                if cid:
-                    active_id = cid
-                    break
-        except Exception:
-            pass
+    # Priority 3: Fallback globally by newest mtime only if no workspace match found
+    if not active_id and not storage_dir and not folder_uri and not folder_path:
+        candidates = []
+        for wsd in ws_storage_dirs:
+            for db_path in glob.glob(os.path.join(wsd, '*', 'state.vscdb')):
+                try:
+                    candidates.append((os.path.getmtime(db_path), db_path))
+                except Exception:
+                    pass
+
+        candidates.sort(key=lambda x: x[0], reverse=True)
+        for mtime, db_path in candidates:
+            try:
+                conn = sqlite3.connect(db_path, timeout=2.0)
+                c = conn.cursor()
+                c.execute("SELECT value FROM ItemTable WHERE key = 'google.google-antigravity'")
+                row = c.fetchone()
+                conn.close()
+                if row:
+                    val = json.loads(row[0])
+                    cid = val.get('lastConversationId')
+                    if cid:
+                        active_id = cid
+                        break
+            except Exception:
+                pass
 
     print(json.dumps({'success': True, 'activeConversationId': active_id}))
 except Exception as e:
     print(json.dumps({'success': False, 'error': str(e)}))
 `;
     try {
-      const res = await SqliteBridge.runScript<{ success: boolean; activeConversationId?: string }>(pyScript);
+      const payload = this.workspaceContext || {};
+      const res = await SqliteBridge.runScript<{ success: boolean; activeConversationId?: string }>(pyScript, payload);
       return res.activeConversationId || null;
     } catch {
       return null;
@@ -725,11 +825,15 @@ except Exception as e:
 
   public async switchConversation(conversationId: string): Promise<{ success: boolean; updatedWorkspaces: number; updatedGlobal: number }> {
     const pyScript = `
-import os, glob, sqlite3, json, sys
+import os, glob, sqlite3, json, sys, urllib.parse
 
 try:
     payload = json.loads(sys.stdin.read())
     target_id = payload["conversationId"]
+    storage_dir = payload.get("storageDir")
+    folder_uri = payload.get("folderUri")
+    folder_path = payload.get("folderPath")
+
     roots = []
     if os.environ.get('APPDATA'):
         roots.append(os.environ['APPDATA'])
@@ -738,7 +842,6 @@ try:
     roots.append(os.path.join(home, 'Library', 'Application Support'))
     roots.append(os.path.join(home, 'AppData', 'Roaming'))
 
-    # If running inside WSL, also inspect Windows host AppData mounted under /mnt/c
     if os.path.exists('/mnt/c/Users'):
         try:
             for u in os.listdir('/mnt/c/Users'):
@@ -749,8 +852,6 @@ try:
             pass
 
     editors = ['Antigravity', 'Antigravity IDE', 'Code', 'Code - Insiders', 'Cursor', 'Windsurf', 'VSCodium']
-
-    # Remote Extension Host server roots (WSL, Remote SSH, Containers)
     server_roots = [
         os.path.join(home, '.antigravity-ide-server', 'data', 'User'),
         os.path.join(home, '.vscode-server', 'data', 'User'),
@@ -759,52 +860,116 @@ try:
         os.path.join(home, '.windsurf-server', 'data', 'User'),
     ]
 
-    ws_patterns = []
-    for root in roots:
-        if os.path.isdir(root):
-            for ed in editors:
-                ws_patterns.append(os.path.join(root, ed, "User", "workspaceStorage", "*", "state.vscdb"))
+    target_dbs = []
 
-    for s_root in server_roots:
-        if os.path.isdir(s_root):
-            ws_patterns.append(os.path.join(s_root, "workspaceStorage", "*", "state.vscdb"))
-    
-    updated_ws = 0
-    # 1. Update workspaceStorage
-    for pat in ws_patterns:
-        for db_path in glob.glob(pat):
+    # 1. Target direct storage dir if provided
+    if storage_dir and os.path.isdir(storage_dir):
+        db = os.path.join(storage_dir, 'state.vscdb')
+        if os.path.exists(db):
+            target_dbs.append(db)
+
+    # 2. Target matching workspace folder
+    if not target_dbs and (folder_uri or folder_path):
+        ws_storage_dirs = []
+        for root in roots:
+            if os.path.isdir(root):
+                for ed in editors:
+                    d = os.path.join(root, ed, 'User', 'workspaceStorage')
+                    if os.path.isdir(d):
+                        ws_storage_dirs.append(d)
+        for s_root in server_roots:
+            if os.path.isdir(s_root):
+                d = os.path.join(s_root, 'workspaceStorage')
+                if os.path.isdir(d):
+                    ws_storage_dirs.append(d)
+
+        norm_target_path = os.path.normcase(os.path.abspath(folder_path)) if folder_path else None
+        for wsd in ws_storage_dirs:
             try:
-                conn = sqlite3.connect(db_path, timeout=5.0)
-                c = conn.cursor()
-                c.execute("SELECT value FROM ItemTable WHERE key = 'google.google-antigravity'")
-                row = c.fetchone()
-                if row:
-                    try:
-                        val = json.loads(row[0])
-                        val["lastConversationId"] = target_id
-                        c.execute("UPDATE ItemTable SET value = ? WHERE key = 'google.google-antigravity'", (json.dumps(val),))
-                        c.execute("INSERT OR REPLACE INTO ItemTable (key, value) VALUES ('antigravity.pendingConversationId', ?)", (target_id,))
-                        conn.commit()
-                        updated_ws += 1
-                    except Exception:
-                        pass
-                conn.close()
+                for entry in os.scandir(wsd):
+                    if entry.is_dir():
+                        wj = os.path.join(entry.path, 'workspace.json')
+                        if os.path.exists(wj):
+                            try:
+                                with open(wj, 'r', encoding='utf-8') as f:
+                                    wdata = json.load(f)
+                                f_val = wdata.get('folder') or wdata.get('workspace')
+                                matched = False
+                                if f_val:
+                                    if folder_uri and f_val.lower() == folder_uri.lower():
+                                        matched = True
+                                    elif norm_target_path:
+                                        parsed = urllib.parse.unquote(f_val)
+                                        if parsed.startswith('file:///'):
+                                            p = parsed[8:]
+                                            if len(p) > 2 and p[1] == ':':
+                                                pass
+                                            elif p.startswith('/'):
+                                                pass
+                                            if os.path.normcase(os.path.abspath(p)) == norm_target_path:
+                                                matched = True
+                                if matched:
+                                    db = os.path.join(entry.path, 'state.vscdb')
+                                    if os.path.exists(db):
+                                        target_dbs.append(db)
+                            except Exception:
+                                pass
             except Exception:
                 pass
 
-    # 2. Update globalStorage
+    # 3. Fallback: if no specific workspace found, look at all workspaceStorage
+    if not target_dbs:
+        ws_patterns = []
+        for root in roots:
+            if os.path.isdir(root):
+                for ed in editors:
+                    ws_patterns.append(os.path.join(root, ed, "User", "workspaceStorage", "*", "state.vscdb"))
+        for s_root in server_roots:
+            if os.path.isdir(s_root):
+                ws_patterns.append(os.path.join(s_root, "workspaceStorage", "*", "state.vscdb"))
+        for pat in ws_patterns:
+            for db_path in glob.glob(pat):
+                target_dbs.append(db_path)
+
+    updated_ws = 0
+    for db_path in set(target_dbs):
+        try:
+            conn = sqlite3.connect(db_path, timeout=5.0)
+            c = conn.cursor()
+            c.execute("SELECT value FROM ItemTable WHERE key = 'google.google-antigravity'")
+            row = c.fetchone()
+            if row:
+                try:
+                    val = json.loads(row[0])
+                    val["lastConversationId"] = target_id
+                    c.execute("UPDATE ItemTable SET value = ? WHERE key = 'google.google-antigravity'", (json.dumps(val),))
+                    c.execute("INSERT OR REPLACE INTO ItemTable (key, value) VALUES ('antigravity.pendingConversationId', ?)", (target_id,))
+                    conn.commit()
+                    updated_ws += 1
+                except Exception:
+                    pass
+            elif storage_dir and os.path.normcase(os.path.abspath(os.path.dirname(db_path))) == os.path.normcase(os.path.abspath(storage_dir)):
+                new_val = {"lastConversationId": target_id}
+                c.execute("INSERT OR REPLACE INTO ItemTable (key, value) VALUES ('google.google-antigravity', ?)", (json.dumps(new_val),))
+                c.execute("INSERT OR REPLACE INTO ItemTable (key, value) VALUES ('antigravity.pendingConversationId', ?)", (target_id,))
+                conn.commit()
+                updated_ws += 1
+            conn.close()
+        except Exception:
+            pass
+
+    # Update globalStorage
     gs_paths = []
     for root in roots:
         if os.path.isdir(root):
             for ed in editors:
                 gs_paths.append(os.path.join(root, ed, "User", "globalStorage", "state.vscdb"))
-
     for s_root in server_roots:
         if os.path.isdir(s_root):
             gs_paths.append(os.path.join(s_root, "globalStorage", "state.vscdb"))
 
     updated_gs = 0
-    for gs_path in gs_paths:
+    for gs_path in set(gs_paths):
         if os.path.exists(gs_path):
             try:
                 conn = sqlite3.connect(gs_path, timeout=5.0)
@@ -822,12 +987,16 @@ except Exception as e:
 `;
 
     try {
+      const payload = {
+        conversationId,
+        ...(this.workspaceContext || {})
+      };
       const res = await SqliteBridge.runScript<{
         success: boolean;
         updatedWorkspaces?: number;
         updatedGlobal?: number;
         error?: string;
-      }>(pyScript, { conversationId });
+      }>(pyScript, payload);
 
       if (!res.success) {
         throw new Error(res.error || "Failed to execute switch script");

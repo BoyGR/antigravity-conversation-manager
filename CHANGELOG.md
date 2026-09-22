@@ -4,6 +4,20 @@ All notable changes to the **Antigravity Conversation Manager** extension will b
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.6] - 2026-09-22
+
+### Fixed
+- **Multi-Window Active Conversation Scoping**:
+  - **Window-Scoped Session Detection**: Fixed an issue where opening multiple VS Code / Antigravity IDE windows side-by-side caused one window to incorrectly display the active conversation from another window. Active conversation resolution now prioritizes the window's exact `context.storageUri` (`workspaceStorage/<workspaceId>/state.vscdb`) and matches `workspace.json` folder URIs before falling back to global timestamps.
+  - **Window-Scoped Switching**: Conversation switching now strictly targets the current window's workspace database first, ensuring that switching conversations in one project does not unexpectedly override or pollute active sessions in other open windows.
+
+### Changed
+- **Cleaner Switch Button UI**:
+  - Removed the lightning icon (`⚡`) from the `[Switch]` button on conversation items in the sidebar list, resulting in a cleaner, more minimalist UI.
+  - Updated the switch confirmation modal header icon to `⇄`.
+
+---
+
 ## [0.3.5] - 2026-09-22
 
 ### Fixed
