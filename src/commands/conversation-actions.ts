@@ -18,8 +18,15 @@ export async function handleSwitchConversation(
   }
 
   try {
-    await store.switchConversation(conversationId);
-    vscode.window.showInformationMessage(`Switched active conversation in Antigravity to ${displayTitle}.`);
+    const result = await store.switchConversation(conversationId);
+    vscode.window.showInformationMessage(
+      `Switched active conversation in Antigravity to ${displayTitle}.`,
+      "Reload Window"
+    ).then((action) => {
+      if (action === "Reload Window") {
+        vscode.commands.executeCommand("workbench.action.reloadWindow");
+      }
+    });
     return true;
   } catch (err: any) {
     vscode.window.showErrorMessage(`Failed to switch active conversation: ${err.message || err}`);

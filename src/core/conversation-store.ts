@@ -654,18 +654,44 @@ try:
     roots.append(os.path.join(home, 'Library', 'Application Support'))
     roots.append(os.path.join(home, 'AppData', 'Roaming'))
 
+    # If running inside WSL, also inspect Windows host AppData mounted under /mnt/c
+    if os.path.exists('/mnt/c/Users'):
+        try:
+            for u in os.listdir('/mnt/c/Users'):
+                win_appdata = os.path.join('/mnt/c/Users', u, 'AppData', 'Roaming')
+                if os.path.isdir(win_appdata):
+                    roots.append(win_appdata)
+        except Exception:
+            pass
+
     editors = ['Antigravity', 'Antigravity IDE', 'Code', 'Code - Insiders', 'Cursor', 'Windsurf', 'VSCodium']
-    candidates = []
+
+    # Remote Extension Host server roots (WSL, Remote SSH, Containers)
+    server_roots = [
+        os.path.join(home, '.antigravity-ide-server', 'data', 'User'),
+        os.path.join(home, '.vscode-server', 'data', 'User'),
+        os.path.join(home, '.vscode-server-insiders', 'data', 'User'),
+        os.path.join(home, '.cursor-server', 'data', 'User'),
+        os.path.join(home, '.windsurf-server', 'data', 'User'),
+    ]
+
+    ws_patterns = []
     for root in roots:
-        if not os.path.isdir(root):
-            continue
-        for ed in editors:
-            ws_pattern = os.path.join(root, ed, 'User', 'workspaceStorage', '*', 'state.vscdb')
-            for db_path in glob.glob(ws_pattern):
-                try:
-                    candidates.append((os.path.getmtime(db_path), db_path))
-                except Exception:
-                    pass
+        if os.path.isdir(root):
+            for ed in editors:
+                ws_patterns.append(os.path.join(root, ed, 'User', 'workspaceStorage', '*', 'state.vscdb'))
+
+    for s_root in server_roots:
+        if os.path.isdir(s_root):
+            ws_patterns.append(os.path.join(s_root, 'workspaceStorage', '*', 'state.vscdb'))
+
+    candidates = []
+    for pat in ws_patterns:
+        for db_path in glob.glob(pat):
+            try:
+                candidates.append((os.path.getmtime(db_path), db_path))
+            except Exception:
+                pass
 
     candidates.sort(key=lambda x: x[0], reverse=True)
     active_id = None
@@ -697,7 +723,7 @@ except Exception as e:
     }
   }
 
-  public async switchConversation(conversationId: string): Promise<boolean> {
+  public async switchConversation(conversationId: string): Promise<{ success: boolean; updatedWorkspaces: number; updatedGlobal: number }> {
     const pyScript = `
 import os, glob, sqlite3, json, sys
 
@@ -712,52 +738,83 @@ try:
     roots.append(os.path.join(home, 'Library', 'Application Support'))
     roots.append(os.path.join(home, 'AppData', 'Roaming'))
 
+    # If running inside WSL, also inspect Windows host AppData mounted under /mnt/c
+    if os.path.exists('/mnt/c/Users'):
+        try:
+            for u in os.listdir('/mnt/c/Users'):
+                win_appdata = os.path.join('/mnt/c/Users', u, 'AppData', 'Roaming')
+                if os.path.isdir(win_appdata):
+                    roots.append(win_appdata)
+        except Exception:
+            pass
+
     editors = ['Antigravity', 'Antigravity IDE', 'Code', 'Code - Insiders', 'Cursor', 'Windsurf', 'VSCodium']
+
+    # Remote Extension Host server roots (WSL, Remote SSH, Containers)
+    server_roots = [
+        os.path.join(home, '.antigravity-ide-server', 'data', 'User'),
+        os.path.join(home, '.vscode-server', 'data', 'User'),
+        os.path.join(home, '.vscode-server-insiders', 'data', 'User'),
+        os.path.join(home, '.cursor-server', 'data', 'User'),
+        os.path.join(home, '.windsurf-server', 'data', 'User'),
+    ]
+
+    ws_patterns = []
+    for root in roots:
+        if os.path.isdir(root):
+            for ed in editors:
+                ws_patterns.append(os.path.join(root, ed, "User", "workspaceStorage", "*", "state.vscdb"))
+
+    for s_root in server_roots:
+        if os.path.isdir(s_root):
+            ws_patterns.append(os.path.join(s_root, "workspaceStorage", "*", "state.vscdb"))
     
     updated_ws = 0
     # 1. Update workspaceStorage
-    for root in roots:
-        if not os.path.isdir(root):
-            continue
-        for ed in editors:
-            ws_pattern = os.path.join(root, ed, "User", "workspaceStorage", "*", "state.vscdb")
-            for db_path in glob.glob(ws_pattern):
-                try:
-                    conn = sqlite3.connect(db_path, timeout=5.0)
-                    c = conn.cursor()
-                    c.execute("SELECT value FROM ItemTable WHERE key = 'google.google-antigravity'")
-                    row = c.fetchone()
-                    if row:
-                        try:
-                            val = json.loads(row[0])
-                            val["lastConversationId"] = target_id
-                            c.execute("UPDATE ItemTable SET value = ? WHERE key = 'google.google-antigravity'", (json.dumps(val),))
-                            c.execute("INSERT OR REPLACE INTO ItemTable (key, value) VALUES ('antigravity.pendingConversationId', ?)", (target_id,))
-                            conn.commit()
-                            updated_ws += 1
-                        except Exception:
-                            pass
-                    conn.close()
-                except Exception:
-                    pass
+    for pat in ws_patterns:
+        for db_path in glob.glob(pat):
+            try:
+                conn = sqlite3.connect(db_path, timeout=5.0)
+                c = conn.cursor()
+                c.execute("SELECT value FROM ItemTable WHERE key = 'google.google-antigravity'")
+                row = c.fetchone()
+                if row:
+                    try:
+                        val = json.loads(row[0])
+                        val["lastConversationId"] = target_id
+                        c.execute("UPDATE ItemTable SET value = ? WHERE key = 'google.google-antigravity'", (json.dumps(val),))
+                        c.execute("INSERT OR REPLACE INTO ItemTable (key, value) VALUES ('antigravity.pendingConversationId', ?)", (target_id,))
+                        conn.commit()
+                        updated_ws += 1
+                    except Exception:
+                        pass
+                conn.close()
+            except Exception:
+                pass
 
     # 2. Update globalStorage
-    updated_gs = 0
+    gs_paths = []
     for root in roots:
-        if not os.path.isdir(root):
-            continue
-        for ed in editors:
-            gs_path = os.path.join(root, ed, "User", "globalStorage", "state.vscdb")
-            if os.path.exists(gs_path):
-                try:
-                    conn = sqlite3.connect(gs_path, timeout=5.0)
-                    c = conn.cursor()
-                    c.execute("INSERT OR REPLACE INTO ItemTable (key, value) VALUES ('antigravity.pendingConversationId', ?)", (target_id,))
-                    conn.commit()
-                    conn.close()
-                    updated_gs += 1
-                except Exception:
-                    pass
+        if os.path.isdir(root):
+            for ed in editors:
+                gs_paths.append(os.path.join(root, ed, "User", "globalStorage", "state.vscdb"))
+
+    for s_root in server_roots:
+        if os.path.isdir(s_root):
+            gs_paths.append(os.path.join(s_root, "globalStorage", "state.vscdb"))
+
+    updated_gs = 0
+    for gs_path in gs_paths:
+        if os.path.exists(gs_path):
+            try:
+                conn = sqlite3.connect(gs_path, timeout=5.0)
+                c = conn.cursor()
+                c.execute("INSERT OR REPLACE INTO ItemTable (key, value) VALUES ('antigravity.pendingConversationId', ?)", (target_id,))
+                conn.commit()
+                conn.close()
+                updated_gs += 1
+            except Exception:
+                pass
 
     print(json.dumps({"success": True, "updatedWorkspaces": updated_ws, "updatedGlobal": updated_gs}))
 except Exception as e:
@@ -765,10 +822,33 @@ except Exception as e:
 `;
 
     try {
-      await SqliteBridge.runScript(pyScript, { conversationId });
+      const res = await SqliteBridge.runScript<{
+        success: boolean;
+        updatedWorkspaces?: number;
+        updatedGlobal?: number;
+        error?: string;
+      }>(pyScript, { conversationId });
+
+      if (!res.success) {
+        throw new Error(res.error || "Failed to execute switch script");
+      }
+
+      const updatedWorkspaces = res.updatedWorkspaces || 0;
+      const updatedGlobal = res.updatedGlobal || 0;
+
+      if (updatedWorkspaces === 0 && updatedGlobal === 0) {
+        throw new Error(
+          "No active Antigravity session storage found (0 databases updated). " +
+          "Please ensure Antigravity chat is open in this workspace."
+        );
+      }
 
       try {
         await vscode.commands.executeCommand("antigravity.reconnect");
+      } catch {}
+
+      try {
+        await vscode.commands.executeCommand("antigravity.triggerUpdate");
       } catch {}
 
       try {
@@ -779,7 +859,11 @@ except Exception as e:
         } catch {}
       }
 
-      return true;
+      return {
+        success: true,
+        updatedWorkspaces,
+        updatedGlobal
+      };
     } catch (e: any) {
       console.error("Failed to switch conversation:", e);
       throw new Error(`Failed to switch conversation: ${e.message || e}`);

@@ -4,6 +4,17 @@ All notable changes to the **Antigravity Conversation Manager** extension will b
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.5] - 2026-09-22
+
+### Fixed
+- **Remote Server (WSL2 / Remote SSH) Storage Roots & Conversation Switching (Issue #2)**:
+  - **Remote Extension Host Storage Discovery**: Added dedicated discovery for remote server paths (`~/.antigravity-ide-server/data/User/`, `~/.vscode-server/data/User/`, `~/.cursor-server/data/User/`, `~/.windsurf-server/data/User/`) so `workspaceStorage` and `globalStorage` databases are correctly located in WSL2, SSH, and containerized environments.
+  - **WSL Windows Host Storage Mount**: When running inside WSL2 on a Windows host, the extension now also scans `/mnt/c/Users/*/AppData/Roaming` to bridge desktop client session databases.
+  - **Anti False-Positive Validation**: Fixed false-positive success notifications by verifying that at least one database was updated (`updatedWorkspaces > 0 || updatedGlobal > 0`) before reporting success, preventing silent switch failures.
+  - **Reload Window Action**: Added a direct "Reload Window" notification button after switching conversations so users in remote architectures can immediately sync the in-memory chat panel with a single click.
+
+---
+
 ## [0.3.4] - 2026-09-21
 
 ### Fixed

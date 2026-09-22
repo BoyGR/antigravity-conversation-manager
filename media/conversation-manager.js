@@ -424,7 +424,7 @@
 
               <div class="about-row">
                 <span>${escapeHtml(t("appName"))}</span>
-                <span>v${escapeHtml(state.version || "0.3.4")}</span>
+                <span>v${escapeHtml(state.version || "0.3.5")}</span>
               </div>
               <div class="about-row">
                 <span>${escapeHtml(t("developer"))}</span>

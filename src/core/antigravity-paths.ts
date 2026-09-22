@@ -89,6 +89,19 @@ export function resolveAntigravityPaths(): AntigravityPaths {
   // Fallback for Windows without APPDATA env
   editorRoots.push(path.join(home, "AppData", "Roaming"));
 
+  // In WSL2, also inspect Windows host AppData mounted under /mnt/c/Users/*/AppData/Roaming
+  if (process.platform === "linux" && fs.existsSync("/mnt/c/Users")) {
+    try {
+      const winUsers = fs.readdirSync("/mnt/c/Users");
+      for (const u of winUsers) {
+        const winAppData = path.join("/mnt/c/Users", u, "AppData", "Roaming");
+        if (fs.existsSync(winAppData)) {
+          editorRoots.push(winAppData);
+        }
+      }
+    } catch {}
+  }
+
   const editorNames = [
     "Antigravity",
     "Antigravity IDE",
@@ -121,6 +134,24 @@ export function resolveAntigravityPaths(): AntigravityPaths {
       }
     }
   }
+
+  // Remote Extension Host Server storage paths (WSL, Remote SSH, Containers)
+  const remoteServerDirs = [
+    path.join(home, ".antigravity-ide-server", "data", "User"),
+    path.join(home, ".vscode-server", "data", "User"),
+    path.join(home, ".vscode-server-insiders", "data", "User"),
+    path.join(home, ".cursor-server", "data", "User"),
+    path.join(home, ".windsurf-server", "data", "User")
+  ];
+
+  for (const sDir of remoteServerDirs) {
+    if (!fs.existsSync(sDir)) continue;
+    const vscdb = path.join(sDir, "globalStorage", "state.vscdb");
+    if (fs.existsSync(vscdb)) {
+      vscdbCandidates.push(vscdb);
+    }
+  }
+
   if (!appStorageJson) {
     appStorageJson = path.join(editorRoots[0] || home, "Antigravity", "app_storage.json");
   }

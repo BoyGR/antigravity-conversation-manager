@@ -126,11 +126,21 @@ export class ConversationWebviewProvider implements vscode.WebviewViewProvider {
         }
         case "executeSwitch": {
           try {
-            await this._store.switchConversation(data.conversationId);
-            vscode.window.setStatusBarMessage(`$(check) Switched active conversation to "${data.title || data.conversationId}"`, 4000);
+            const result = await this._store.switchConversation(data.conversationId);
+            vscode.window.setStatusBarMessage(
+              `$(check) Switched active conversation to "${data.title || data.conversationId}"`,
+              5000
+            );
             await this.refresh();
           } catch (err: any) {
-            vscode.window.showErrorMessage(`Failed to switch conversation: ${err.message || err}`);
+            vscode.window.showErrorMessage(
+              `Failed to switch conversation: ${err.message || err}`,
+              "Reload Window"
+            ).then((action) => {
+              if (action === "Reload Window") {
+                vscode.commands.executeCommand("workbench.action.reloadWindow");
+              }
+            });
           }
           break;
         }
@@ -351,7 +361,7 @@ export class ConversationWebviewProvider implements vscode.WebviewViewProvider {
         allLabels,
         baseDir: this._store.getPaths().baseDir,
         preferences,
-        version: "0.3.4",
+        version: "0.3.5",
         iconUri
       });
     } catch (err: any) {
@@ -416,7 +426,7 @@ export class ConversationWebviewProvider implements vscode.WebviewViewProvider {
         <span class="footer-prefix">Developed by</span>
         <a href="https://boygr.com" id="developer-link" class="developer-link" title="https://boygr.com" data-external-url="https://boygr.com">Boy Gilang Ramadhan (BoyGR)</a>
       </div>
-      <span class="footer-version">v0.3.4</span>
+      <span class="footer-version">v0.3.5</span>
     </footer>
   </div>
 
