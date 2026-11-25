@@ -41,6 +41,7 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(statusBar);
 
   // 2. Register Webview View
+  const extensionVersion = String(context.extension.packageJSON?.version || "0.3.7");
   const webviewProvider = new ConversationWebviewProvider(
     context.extensionUri,
     store,
@@ -48,13 +49,27 @@ export function activate(context: vscode.ExtensionContext) {
     exporter,
     importer,
     backupService,
-    statusBar
+    statusBar,
+    extensionVersion
   );
 
   context.subscriptions.push(
     vscode.workspace.onDidChangeWorkspaceFolders(() => {
       store.setWorkspaceContext(getWorkspaceInfo());
       webviewProvider.refresh();
+    })
+  );
+
+  // Auto-sync active conversation badge when returning focus to this window
+  let focusRefreshTimer: NodeJS.Timeout | null = null;
+  context.subscriptions.push(
+    vscode.window.onDidChangeWindowState((windowState) => {
+      if (windowState.focused) {
+        if (focusRefreshTimer) clearTimeout(focusRefreshTimer);
+        focusRefreshTimer = setTimeout(() => {
+          webviewProvider.refresh();
+        }, 350);
+      }
     })
   );
 

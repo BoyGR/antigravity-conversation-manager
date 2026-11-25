@@ -4,6 +4,21 @@ All notable changes to the **Antigravity Conversation Manager** extension will b
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.7] - 2026-11-26
+
+### Added
+- **Pin / Favorite Conversations**: Pin important conversations to keep them anchored at the top of their project folder (persisted in `acm_pinned.json`, automatically cleaned up when deleted).
+- **Conversation Sorting**: Added a compact sort selector in the dashboard header to sort conversations by **Recent**, **Title (A–Z)**, **Most Steps**, or **Largest Size** (with pinned conversations always kept on top and sort preference remembered).
+- **Quick Conversation Actions**: Added dedicated icon buttons on each conversation item to **Copy Conversation ID** and **Open Artifacts (`brain/<id>`) Folder** directly in Explorer/Finder.
+- **Storage Summary & Open Data Folder**: Added total database storage summary and a one-click **Open Data Folder** button inside the Settings modal.
+- **Auto-Sync on Window Focus**: Added a debounced `onDidChangeWindowState` listener so returning focus to a VS Code / Antigravity window automatically refreshes the active conversation badge.
+
+### Changed
+- **Dynamic Extension Version**: Removed hardcoded version strings from the webview provider and frontend JS; the UI now reads the extension version dynamically from `package.json`.
+- **Updated Documentation**: Expanded `README.md` to document color-coded labels, multi-window isolation, pinning/sorting, bilingual EN/ID support, and Linux/WSL2/Remote SSH compatibility.
+
+---
+
 ## [0.3.6] - 2026-09-22
 
 ### Fixed

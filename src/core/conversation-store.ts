@@ -19,6 +19,7 @@ export interface ConversationItem {
   hasBrain: boolean;
   dbSizeBytes: number;
   labels: LabelItem[];
+  isPinned?: boolean;
 }
 
 export interface ProjectGroup {
@@ -163,6 +164,7 @@ export class ConversationStore {
         } catch {}
       }
 
+      const pinnedIds = this.loadPinnedIds();
       const item: ConversationItem = {
         id,
         title,
@@ -176,7 +178,8 @@ export class ConversationStore {
         agentName,
         hasBrain,
         dbSizeBytes,
-        labels: labelMgr.getConversationLabels(id)
+        labels: labelMgr.getConversationLabels(id),
+        isPinned: pinnedIds.has(id)
       };
 
       if (!projectMap.has(projectId)) {
@@ -235,6 +238,44 @@ export class ConversationStore {
       existing[conversationId] = title;
       fs.writeFileSync(p, JSON.stringify(existing, null, 2), "utf-8");
     } catch {}
+  }
+
+  private getPinnedPath(): string {
+    return path.join(this.paths.baseDir, "acm_pinned.json");
+  }
+
+  private loadPinnedIds(): Set<string> {
+    try {
+      const p = this.getPinnedPath();
+      if (fs.existsSync(p)) {
+        const parsed = JSON.parse(fs.readFileSync(p, "utf-8"));
+        if (Array.isArray(parsed)) {
+          return new Set(parsed.filter((id) => typeof id === "string"));
+        }
+      }
+    } catch {}
+    return new Set<string>();
+  }
+
+  private savePinnedIds(ids: Set<string>): void {
+    try {
+      const p = this.getPinnedPath();
+      fs.writeFileSync(p, JSON.stringify(Array.from(ids), null, 2), "utf-8");
+    } catch {}
+  }
+
+  public togglePinConversation(conversationId: string): boolean {
+    const pinned = this.loadPinnedIds();
+    let isNowPinned = false;
+    if (pinned.has(conversationId)) {
+      pinned.delete(conversationId);
+      isNowPinned = false;
+    } else {
+      pinned.add(conversationId);
+      isNowPinned = true;
+    }
+    this.savePinnedIds(pinned);
+    return isNowPinned;
   }
 
   /**
@@ -402,6 +443,7 @@ export class ConversationStore {
         }
       }
 
+      const pinnedIds = this.loadPinnedIds();
       const item: ConversationItem = {
         id,
         title,
@@ -415,7 +457,8 @@ export class ConversationStore {
         agentName: "Antigravity Agent",
         hasBrain,
         dbSizeBytes,
-        labels: labelMgr.getConversationLabels(id)
+        labels: labelMgr.getConversationLabels(id),
+        isPinned: pinnedIds.has(id)
       };
 
       if (!projectMap.has(projectId)) {
@@ -615,6 +658,15 @@ export class ConversationStore {
         if (titles[conversationId]) {
           delete titles[conversationId];
           fs.writeFileSync(p, JSON.stringify(titles, null, 2), "utf-8");
+        }
+      } catch {}
+
+      // Remove from pinned list if pinned
+      try {
+        const pinned = this.loadPinnedIds();
+        if (pinned.has(conversationId)) {
+          pinned.delete(conversationId);
+          this.savePinnedIds(pinned);
         }
       } catch {}
 

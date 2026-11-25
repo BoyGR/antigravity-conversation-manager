@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import * as path from "path";
+import * as fs from "fs";
 import { ConversationStore, ProjectGroup } from "../core/conversation-store";
 import { ConversationMigrator } from "../core/conversation-migrator";
 import { ConversationExporter } from "../core/conversation-exporter";
@@ -31,7 +32,8 @@ export class ConversationWebviewProvider implements vscode.WebviewViewProvider {
     private readonly _exporter: ConversationExporter,
     private readonly _importer: ConversationImporter,
     private readonly _backupService: BackupService,
-    private readonly _statusBar?: StatusBarManager
+    private readonly _statusBar?: StatusBarManager,
+    private readonly _version: string = "0.3.7"
   ) {}
 
   public resolveWebviewView(
@@ -211,6 +213,37 @@ export class ConversationWebviewProvider implements vscode.WebviewViewProvider {
           }
           break;
         }
+        case "togglePin": {
+          if (data.conversationId) {
+            const isPinned = this._store.togglePinConversation(data.conversationId);
+            vscode.window.setStatusBarMessage(
+              isPinned ? "$(pin) Conversation pinned to top" : "$(pinned) Conversation unpinned",
+              3000
+            );
+            await this.refresh();
+          }
+          break;
+        }
+        case "openBrainFolder": {
+          if (data.conversationId) {
+            const brainDir = path.join(this._store.getPaths().brainDir, data.conversationId);
+            if (fs.existsSync(brainDir)) {
+              await vscode.env.openExternal(vscode.Uri.file(brainDir));
+            } else {
+              vscode.window.showWarningMessage("No brain/artifacts folder exists for this conversation.");
+            }
+          }
+          break;
+        }
+        case "openDataFolder": {
+          const baseDir = this._store.getPaths().baseDir;
+          if (fs.existsSync(baseDir)) {
+            await vscode.env.openExternal(vscode.Uri.file(baseDir));
+          } else {
+            vscode.window.showWarningMessage(`Antigravity data directory does not exist: ${baseDir}`);
+          }
+          break;
+        }
         case "openExternal": {
           if (data.url) {
             vscode.env.openExternal(vscode.Uri.parse(data.url));
@@ -325,8 +358,12 @@ export class ConversationWebviewProvider implements vscode.WebviewViewProvider {
       ]);
 
       let totalConversations = 0;
+      let totalDbBytes = 0;
       for (const p of projects) {
         totalConversations += p.conversations.length;
+        for (const c of p.conversations) {
+          totalDbBytes += c.dbSizeBytes || 0;
+        }
       }
 
       if (this._statusBar) {
@@ -357,11 +394,12 @@ export class ConversationWebviewProvider implements vscode.WebviewViewProvider {
         projects,
         totalProjects: projects.length,
         totalConversations,
+        totalDbBytes,
         activeConversationId,
         allLabels,
         baseDir: this._store.getPaths().baseDir,
         preferences,
-        version: "0.3.6",
+        version: this._version,
         iconUri
       });
     } catch (err: any) {
@@ -413,7 +451,13 @@ export class ConversationWebviewProvider implements vscode.WebviewViewProvider {
       <div class="labels-filter-bar" id="labels-filter-bar"></div>
 
       <div class="stats-bar" id="stats-bar">
-        <span>Loading conversations...</span>
+        <span id="stats-summary">Loading conversations...</span>
+        <select id="sort-select" class="sort-select" title="Sort conversations">
+          <option value="recent">Recent</option>
+          <option value="title">Title (A-Z)</option>
+          <option value="steps">Steps</option>
+          <option value="size">Size</option>
+        </select>
       </div>
     </header>
 
@@ -426,7 +470,7 @@ export class ConversationWebviewProvider implements vscode.WebviewViewProvider {
         <span class="footer-prefix">Developed by</span>
         <a href="https://boygr.com" id="developer-link" class="developer-link" title="https://boygr.com" data-external-url="https://boygr.com">Boy Gilang Ramadhan (BoyGR)</a>
       </div>
-      <span class="footer-version">v0.3.6</span>
+      <span class="footer-version">v${this._version}</span>
     </footer>
   </div>
 

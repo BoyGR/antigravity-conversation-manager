@@ -1,15 +1,22 @@
 (function () {
   const vscode = acquireVsCodeApi();
 
+  const savedWebviewState = vscode.getState() || {};
+
   let state = {
     projects: [],
     allLabels: [],
     selectedLabelFilter: "all",
     filterQuery: "",
+    sortBy: savedWebviewState.sortBy || "recent",
     activeConversationId: null,
     expandedProjectId: null,
     hasInitializedExpansion: false,
-    lastProjectsJson: ""
+    lastProjectsJson: "",
+    totalProjects: 0,
+    totalConversations: 0,
+    totalDbBytes: 0,
+    baseDir: ""
   };
 
   let preferences = {
@@ -111,7 +118,19 @@
       developedBy: "Developed by",
       resetToDefault: "Reset to Default",
       resetSettingsNotice: "Settings reset to defaults. Click Save to apply.",
-      website: "Website"
+      website: "Website",
+      pin: "Pin to top",
+      unpin: "Unpin",
+      pinned: "Pinned",
+      copyId: "Copy Conversation ID",
+      openBrainFolder: "Open Artifacts Folder",
+      openDataFolder: "Open Data Folder",
+      sortBy: "Sort conversations",
+      sortRecent: "Recent",
+      sortTitle: "Title (A-Z)",
+      sortSteps: "Most Steps",
+      sortSize: "Largest Size",
+      totalStorage: "Database Storage"
     },
     id: {
       appName: "Antigravity Conversation Manager",
@@ -181,7 +200,19 @@
       developedBy: "Dikembangkan oleh",
       resetToDefault: "Atur Ulang Default",
       resetSettingsNotice: "Pengaturan dikembalikan ke default. Klik Simpan untuk menerapkan.",
-      website: "Situs Web"
+      website: "Situs Web",
+      pin: "Sematkan ke atas",
+      unpin: "Lepas sematan",
+      pinned: "Disematkan",
+      copyId: "Salin ID Percakapan",
+      openBrainFolder: "Buka Folder Artifak",
+      openDataFolder: "Buka Folder Data",
+      sortBy: "Urutkan percakapan",
+      sortRecent: "Terbaru",
+      sortTitle: "Judul (A-Z)",
+      sortSteps: "Step Terbanyak",
+      sortSize: "Ukuran Terbesar",
+      totalStorage: "Penyimpanan Database"
     }
   };
 
@@ -212,6 +243,8 @@
 
   const treeContainer = document.getElementById("tree-container");
   const statsBar = document.getElementById("stats-bar");
+  const statsSummary = document.getElementById("stats-summary");
+  const sortSelect = document.getElementById("sort-select");
   const searchInput = document.getElementById("search-input");
   const btnRefresh = document.getElementById("btn-refresh");
   const btnImport = document.getElementById("btn-import");
@@ -223,12 +256,36 @@
   const labelModalContainer = document.getElementById("label-modal-container");
   const labelPickerContainer = document.getElementById("label-picker-container");
 
+  function formatBytes(bytes) {
+    if (!bytes || bytes <= 0) return "0 KB";
+    if (bytes < 1024 * 1024) {
+      return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+    }
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  }
+
   function updateUiTexts() {
     if (searchInput) {
       searchInput.placeholder = t("searchPlaceholder");
     }
     if (btnNewProject) btnNewProject.title = t("newProjectTitle");
     if (btnImport) btnImport.title = t("importBundle");
+    if (sortSelect) {
+      sortSelect.title = t("sortBy");
+      sortSelect.value = state.sortBy || "recent";
+      const optMap = {
+        recent: t("sortRecent"),
+        title: t("sortTitle"),
+        steps: t("sortSteps"),
+        size: t("sortSize")
+      };
+      Array.from(sortSelect.options).forEach((opt) => {
+        if (optMap[opt.value]) opt.textContent = optMap[opt.value];
+      });
+    }
+    if (statsSummary && state.hasInitializedExpansion) {
+      statsSummary.textContent = `${state.totalProjects} ${t("projects")} • ${state.totalConversations} ${t("conversations")}`;
+    }
     const footerPrefix = document.querySelector(".footer-prefix");
     if (footerPrefix) {
       footerPrefix.textContent = t("developedBy");
@@ -407,9 +464,16 @@
             <div class="settings-group">
               <h3>${escapeHtml(t("backupAndRestore"))}</h3>
               <p class="settings-desc">${escapeHtml(t("backupDesc"))}</p>
+              <div class="storage-summary-box">
+                <div class="about-row">
+                  <span>${escapeHtml(t("totalStorage"))}</span>
+                  <strong>${escapeHtml(formatBytes(state.totalDbBytes))} (${state.totalConversations} ${escapeHtml(t("conversations"))})</strong>
+                </div>
+              </div>
               <div class="settings-actions-row">
                 <button type="button" class="btn" id="btn-quick-backup">${escapeHtml(t("backupNow"))}</button>
                 <button type="button" class="btn" id="btn-quick-restore">${escapeHtml(t("restoreNow"))}</button>
+                <button type="button" class="btn" id="btn-open-data-folder">${escapeHtml(t("openDataFolder"))}</button>
               </div>
             </div>
 
@@ -424,7 +488,7 @@
 
               <div class="about-row">
                 <span>${escapeHtml(t("appName"))}</span>
-                <span>v${escapeHtml(state.version || "0.3.6")}</span>
+                <span>${state.version ? `v${escapeHtml(state.version)}` : ""}</span>
               </div>
               <div class="about-row">
                 <span>${escapeHtml(t("developer"))}</span>
@@ -461,6 +525,7 @@
     const resetBtn = document.getElementById("btn-reset-settings");
     const quickBackupBtn = document.getElementById("btn-quick-backup");
     const quickRestoreBtn = document.getElementById("btn-quick-restore");
+    const openDataFolderBtn = document.getElementById("btn-open-data-folder");
     const backdropEl = document.getElementById("settings-backdrop");
 
     if (closeBtn) closeBtn.addEventListener("click", cancelSettings);
@@ -482,6 +547,12 @@
     if (quickRestoreBtn) {
       quickRestoreBtn.addEventListener("click", () => {
         vscode.postMessage({ type: "restore" });
+      });
+    }
+
+    if (openDataFolderBtn) {
+      openDataFolderBtn.addEventListener("click", () => {
+        vscode.postMessage({ type: "openDataFolder" });
       });
     }
 
@@ -544,6 +615,15 @@
     });
   }
 
+  if (sortSelect) {
+    sortSelect.value = state.sortBy || "recent";
+    sortSelect.addEventListener("change", (e) => {
+      state.sortBy = e.target.value || "recent";
+      vscode.setState({ ...(vscode.getState() || {}), sortBy: state.sortBy });
+      renderTree();
+    });
+  }
+
   // Handle messages from Extension Host
   window.addEventListener("message", (event) => {
     const msg = event.data;
@@ -577,6 +657,10 @@
       state.projects = msg.projects || [];
       state.allLabels = msg.allLabels || [];
       state.activeConversationId = msg.activeConversationId || null;
+      state.totalProjects = msg.totalProjects || 0;
+      state.totalConversations = msg.totalConversations || 0;
+      state.totalDbBytes = msg.totalDbBytes || 0;
+      state.baseDir = msg.baseDir || "";
       state.lastProjectsJson = projectsJson;
 
       renderLabelsFilterBar();
@@ -600,8 +684,10 @@
         state.expandedProjectId = null;
       }
 
-      if (statsBar) {
-        statsBar.innerHTML = `<span>${msg.totalProjects} ${t("projects")} • ${msg.totalConversations} ${t("conversations")}</span>`;
+      if (statsSummary) {
+        statsSummary.textContent = `${state.totalProjects} ${t("projects")} • ${state.totalConversations} ${t("conversations")}`;
+      } else if (statsBar) {
+        statsBar.innerHTML = `<span>${state.totalProjects} ${t("projects")} • ${state.totalConversations} ${t("conversations")}</span>`;
       }
 
       // Always render on initial load or if tree is empty, or when data changes
@@ -1079,6 +1165,25 @@
         return matchesQuery && matchesLabel;
       });
 
+      const sortMode = state.sortBy || "recent";
+      filteredConvos.sort((a, b) => {
+        const pinDiff = (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0);
+        if (pinDiff !== 0) return pinDiff;
+
+        if (sortMode === "title") {
+          return (a.title || "").localeCompare(b.title || "");
+        }
+        if (sortMode === "steps") {
+          return (b.stepCount || 0) - (a.stepCount || 0);
+        }
+        if (sortMode === "size") {
+          return (b.dbSizeBytes || 0) - (a.dbSizeBytes || 0);
+        }
+        const timeA = a.lastModifiedTime ? new Date(a.lastModifiedTime).getTime() : 0;
+        const timeB = b.lastModifiedTime ? new Date(b.lastModifiedTime).getTime() : 0;
+        return timeB - timeA;
+      });
+
       const projectHasLabel = activeLabelId === "all" ||
         (proj.labels && proj.labels.some((l) => l.id === activeLabelId));
 
@@ -1237,7 +1342,8 @@
       filteredConvos.forEach((convo) => {
         const itemEl = document.createElement("li");
         const isActive = convo.id === state.activeConversationId;
-        itemEl.className = "conversation-item" + (isActive ? " active" : "");
+        const isPinned = Boolean(convo.isPinned);
+        itemEl.className = "conversation-item" + (isActive ? " active" : "") + (isPinned ? " pinned" : "");
 
         const sizeKb = (convo.dbSizeBytes / 1024).toFixed(0);
         const dateStr = convo.lastModifiedTime ? formatTime(convo.lastModifiedTime) : "";
@@ -1255,9 +1361,14 @@
             `).join("")}</div>`
           : "";
 
+        const pinBadgeHtml = isPinned
+          ? `<span class="pin-indicator" title="${escapeHtml(t("pinned"))}"><svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor"><path d="M9.828.722a.5.5 0 0 1 .354.146l4.95 4.95a.5.5 0 0 1 0 .707c-.48.48-1.072.588-1.503.588-.177 0-.335-.018-.46-.039l-3.134 3.134a5.927 5.927 0 0 1 .16 1.013c.046.702-.032 1.687-.72 2.375a.5.5 0 0 1-.707 0l-2.829-2.828-3.182 3.182c-.195.195-1.219.902-1.414.707-.195-.195.512-1.22.707-1.414l3.182-3.182-2.828-2.829a.5.5 0 0 1 0-.707c.688-.688 1.673-.767 2.375-.72a5.922 5.922 0 0 1 1.013.16l3.134-3.133a2.772 2.772 0 0 1-.04-.461c0-.43.108-1.022.589-1.503a.5.5 0 0 1 .353-.146z"/></svg></span>`
+          : "";
+
         itemEl.innerHTML = `
           <div class="conversation-content">
             <div class="conversation-top-row">
+              ${pinBadgeHtml}
               <span class="conversation-title" title="${escapeHtml(convo.title)}">${escapeHtml(
           convo.title
         )}</span>
@@ -1274,6 +1385,23 @@
                 <span>${escapeHtml(metaText)}</span>
               </div>
               <div class="conversation-actions">
+                <button class="action-icon-btn pin ${isPinned ? "is-pinned" : ""}" title="${escapeHtml(isPinned ? t("unpin") : t("pin"))}">
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M9.828.722a.5.5 0 0 1 .354.146l4.95 4.95a.5.5 0 0 1 0 .707c-.48.48-1.072.588-1.503.588-.177 0-.335-.018-.46-.039l-3.134 3.134a5.927 5.927 0 0 1 .16 1.013c.046.702-.032 1.687-.72 2.375a.5.5 0 0 1-.707 0l-2.829-2.828-3.182 3.182c-.195.195-1.219.902-1.414.707-.195-.195.512-1.22.707-1.414l3.182-3.182-2.828-2.829a.5.5 0 0 1 0-.707c.688-.688 1.673-.767 2.375-.72a5.922 5.922 0 0 1 1.013.16l3.134-3.133a2.772 2.772 0 0 1-.04-.461c0-.43.108-1.022.589-1.503a.5.5 0 0 1 .353-.146z"/>
+                  </svg>
+                </button>
+                <button class="action-icon-btn copy-id" title="${escapeHtml(t("copyId"))}">
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/>
+                    <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/>
+                  </svg>
+                </button>
+                ${convo.hasBrain ? `
+                <button class="action-icon-btn brain" title="${escapeHtml(t("openBrainFolder"))}">
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M1 3.5A1.5 1.5 0 0 1 2.5 2h2.764c.958 0 1.76.56 2.311 1.184C7.985 3.648 8.48 4 9 4h4.5A1.5 1.5 0 0 1 15 5.5v.64c.57.265.94.876.856 1.546l-.64 5.124A2.5 2.5 0 0 1 12.733 15H3.266a2.5 2.5 0 0 1-2.481-2.19l-.64-5.124A1.5 1.5 0 0 1 1 6.14V3.5zM2 6h12v-.5a.5.5 0 0 0-.5-.5H9c-.964 0-1.71-.629-2.174-1.154C6.374 3.334 5.82 3 5.264 3H2.5a.5.5 0 0 0-.5.5V6zm-.367 1a.5.5 0 0 0-.496.562l.64 5.124A1.5 1.5 0 0 0 3.266 14h9.468a1.5 1.5 0 0 0 1.489-1.314l.64-5.124A.5.5 0 0 0 14.367 7H1.633z"/>
+                  </svg>
+                </button>` : ""}
                 <button class="action-icon-btn label" title="${escapeHtml(t("assignLabels"))}">
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
                     <path d="M2 2a1 1 0 0 1 1-1h4.586a1 1 0 0 1 .707.293l7 7a1 1 0 0 1 0 1.414l-4.586 4.586a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 2 6.586V2zm3.5 4a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/>
@@ -1360,6 +1488,33 @@
           btnSwitch.addEventListener("click", (e) => {
             e.stopPropagation();
             triggerSwitch();
+          });
+        }
+
+        // Pin / Unpin Conversation
+        const btnPin = itemEl.querySelector(".action-icon-btn.pin");
+        if (btnPin) {
+          btnPin.addEventListener("click", (e) => {
+            e.stopPropagation();
+            vscode.postMessage({ type: "togglePin", conversationId: convo.id });
+          });
+        }
+
+        // Copy Conversation ID
+        const btnCopyId = itemEl.querySelector(".action-icon-btn.copy-id");
+        if (btnCopyId) {
+          btnCopyId.addEventListener("click", (e) => {
+            e.stopPropagation();
+            vscode.postMessage({ type: "copyId", conversationId: convo.id });
+          });
+        }
+
+        // Open Brain / Artifacts Folder
+        const btnBrain = itemEl.querySelector(".action-icon-btn.brain");
+        if (btnBrain) {
+          btnBrain.addEventListener("click", (e) => {
+            e.stopPropagation();
+            vscode.postMessage({ type: "openBrainFolder", conversationId: convo.id });
           });
         }
 

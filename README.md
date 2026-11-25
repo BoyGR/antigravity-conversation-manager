@@ -13,9 +13,9 @@ Manage, organize, switch, move, export, import, and backup Google Antigravity co
 **Antigravity Conversation Manager** provides a dedicated management hub for Google Antigravity conversation sessions. It solves the common challenges of organizing conversations across workspace projects, moving discussions when switching repositories, sharing portable session bundles, and safely backing up conversation databases.
 
 ### Compatibility
-- **Editors**: Visual Studio Code, Google Antigravity Standalone IDE, Cursor, and other VS Code-compatible editors.
+- **Editors**: Visual Studio Code, Google Antigravity Standalone IDE, Cursor, Windsurf, VSCodium, and other VS Code-compatible editors.
 - **Antigravity Extension**: Official Google Antigravity extension `1.3.0+`, AGY backend `1.2.2+`.
-- **Platforms**: Windows, macOS, Linux.
+- **Platforms**: Windows, macOS, Linux, WSL2, and Remote SSH / Dev Containers.
 
 ---
 
@@ -23,9 +23,11 @@ Manage, organize, switch, move, export, import, and backup Google Antigravity co
 
 ### Conversation Management & Switching
 - **Workspace Tree View**: Browse all your Antigravity conversations grouped by project folders.
-- **Active Session Indicator**: Distinct visual badge marking the currently active conversation in your editor.
+- **Multi-Window Active Session Indicator**: Window-scoped active badge (`Active`) that accurately tracks each editor window's own active conversation without colliding across side-by-side windows, auto-syncing when window focus returns.
+- **Pin & Sort Conversations**: Pin important conversations to the top of their project folder and sort by Recent, Title (A–Z), Most Steps, or Largest Size.
 - **One-Click Switch**: Switch active conversations with an in-webview confirmation modal without restarting the IDE.
-- **Inline Renaming**: Rename conversations on the fly with immediate database synchronization.
+- **Quick Actions**: Copy Conversation ID, open the `brain/<id>` artifacts folder in Explorer/Finder, rename inline, or delete conversations cleanly.
+- **Color-Coded Labels & Filtering**: Create custom color labels, assign them to projects or individual conversations, and filter the list by label.
 - **Project Reordering**: Move project folders up and down to organize your workspace hierarchy.
 
 ### Migration & Relocation
@@ -41,9 +43,10 @@ Manage, organize, switch, move, export, import, and backup Google Antigravity co
 - **Point-in-Time Backups**: Take full snapshot backups of Antigravity's conversation database (`conversation_summaries.db`) and trajectory databases.
 - **Rollback & Restore**: Easily restore databases from earlier snapshots with safe WAL checkpointing.
 
-### Editor Integration & Status Bar
+### Editor Integration, Themes & Localization
 - **Antigravity Logo Status Bar Item**: Live conversation counter with custom Antigravity font branding.
-- **Search & Filter**: Real-time instant search across conversation titles and preview text.
+- **Search, Filter & Storage Insights**: Real-time instant search across conversation titles/previews, label filtering, total database storage summary, and one-click access to the Antigravity data directory.
+- **Themes & Bilingual UI**: Supports VS Code theme, Dark, Light, and System appearance, plus English and Bahasa Indonesia localization.
 - **Consistent Design System**: Shares the same unified `--ag-*` design tokens, dialogs, and slim scrollbars as Antigravity Account Switcher.
 
 ---
